@@ -52,10 +52,10 @@ void FullScreenOpenGLScene::update(AppContext &ctx) {
   // CUDA_CALL(cudaGraphicsUnmapResources(1, &cudaVBO_, 0));
   screenBuffer_.resize(width * height);
 
-  // Add pitch support by rotating cx and cy by pitch
-  //#pragma omp parallel for schedule(dynamic)
-  for (unsigned int row = 0; row < height; ++row) {
-    for (unsigned int col = 0; col < width; ++col) {
+// Add pitch support by rotating cx and cy by pitch
+#pragma omp parallel for schedule(dynamic)
+  for (int row = 0; row < height; ++row) {
+    for (int col = 0; col < width; ++col) {
       auto idx    = row * width + col;
       Vec3 color  = Vec3();
       int alpha   = 255;
