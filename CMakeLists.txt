@@ -3,7 +3,6 @@ cmake_minimum_required(VERSION 3.12)
 project(sfml_cuda_project CXX CUDA)
 include(cmake/StandardProjectSettings.cmake)
 
-option(OPTION_ENABLE_OPTICK "Enable Optick profiler support" ON)
 
 find_package(OpenMP)
 if (OPENMP_FOUND)

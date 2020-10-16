@@ -4,9 +4,11 @@ add_executable(sfml_cuda
     scenes/full_screen_opengl.cpp
     # scenes/full_screen_opengl.cu
 )
+#enable profiler
+set(ENABLE_OPTICK OFF)
 
 include_directories( ${CMAKE_SOURCE_DIR}/include )
-if (OPTION_ENABLE_OPTICK)
+if (ENABLE_OPTICK)
 	add_definitions(-DUSE_OPTICK)
 
 	target_link_libraries(sfml_cuda PRIVATE optimized ${CMAKE_SOURCE_DIR}/lib/x64/release/OptickCore.lib)
