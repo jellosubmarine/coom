@@ -7,6 +7,8 @@
 #include <ostream>
 #include <spdlog/spdlog.h>
 #include <vector>
+#include "optick.h"
+#include "optick.config.h"
 
 #define INF 1e20
 
@@ -87,10 +89,10 @@ struct Sphere : public SceneObject {
   Vec3 getNormal(Vec3 phit) { return phit; }
 
   Hit intersect(const Ray &r) const {
-    Vec3 e   = p - r.o;
-    double a = e.dot(r.d);
+    Vec3 e_ = p - r.o;
+    double a = e_.dot(r.d);
 
-    double fSq = rad * rad - e.dot(e) + a * a;
+    double fSq = rad * rad - e_.dot(e_) + a * a;
 
     if (fSq < 0) {
       return Hit();

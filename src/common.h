@@ -28,7 +28,7 @@ struct Pixel {
 struct AppContext {
   size_t frame = 0;
   float dtime  = 0.f;
-  std::shared_ptr<Scene3D> scene3d;
+  std::unique_ptr<Scene3D> scene3d;
 };
 
 // struct Vec {

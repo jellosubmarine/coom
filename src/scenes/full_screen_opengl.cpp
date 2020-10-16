@@ -45,6 +45,8 @@ FullScreenOpenGLScene::FullScreenOpenGLScene(sf::RenderWindow const &window) {
 FullScreenOpenGLScene::~FullScreenOpenGLScene() { glDeleteBuffers(1, &glVBO_); }
 
 void FullScreenOpenGLScene::update(AppContext &ctx) {
+
+  //OPTICK_EVENT(); 
   // CUDA_CALL(cudaGraphicsMapResources(1, &cudaVBO_, 0));
   // size_t num_bytes;
   // CUDA_CALL(cudaGraphicsResourceGetMappedPointer((void **)&vboPtr_, &num_bytes, cudaVBO_));
@@ -54,11 +56,11 @@ void FullScreenOpenGLScene::update(AppContext &ctx) {
 
 // Add pitch support by rotating cx and cy by pitch
 #pragma omp parallel for schedule(dynamic)
-  for (int row = 0; row < height; ++row) {
-    for (int col = 0; col < width; ++col) {
+  for (int row = 0; row < (int)height; ++row) {
+    for (int col = 0; col < (int)width; ++col) {
       auto idx    = row * width + col;
       Vec3 color  = Vec3();
-      int alpha   = 255;
+      unsigned char alpha   = 255;
       Ray camStep = ctx.scene3d->cam.castRay(col, row);
       Hit hit     = ctx.scene3d->sceneIntersect(camStep);
       if (hit) {
@@ -71,11 +73,11 @@ void FullScreenOpenGLScene::update(AppContext &ctx) {
         //   alpha = 0;
         // }
       }
-      screenBuffer_[idx].x                   = col;
-      screenBuffer_[idx].y                   = row;
-      screenBuffer_[idx].color.components[0] = color[0];
-      screenBuffer_[idx].color.components[1] = color[1];
-      screenBuffer_[idx].color.components[2] = color[2];
+      screenBuffer_[idx].x                   = (float)col;
+      screenBuffer_[idx].y                   = (float)row;
+      screenBuffer_[idx].color.components[0] = (unsigned char)color[0];
+      screenBuffer_[idx].color.components[1] = (unsigned char)color[1];
+      screenBuffer_[idx].color.components[2] = (unsigned char)color[2];
       screenBuffer_[idx].color.components[3] = alpha;
     }
   }
