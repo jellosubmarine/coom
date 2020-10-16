@@ -91,12 +91,12 @@ struct Sphere : public SceneObject {
     }
     t = -b - det;
     if (t > 0) {
-      Vec3 phit = r.o + r.d * (t / 2);
+      Vec3 phit = r.o + r.d * (t / 2.0);
       return Hit(phit, Vec3(), phit.norm());
     }
-    t = -b - det;
+    t = -b + det;
     if (t > 0) {
-      Vec3 phit = r.o + r.d * (t / 2);
+      Vec3 phit = r.o + r.d * (t / 2.0);
       return Hit(phit, Vec3(), phit.norm());
     }
     return Hit(Vec3(), Vec3(), 0);
@@ -133,10 +133,6 @@ struct Scene3D {
 
   Scene3D(Camera cam) : cam(cam) { generateScene(); }
 
-  // void initCam(double hfov, Vec3 position, Vec3 direction) {
-  //   cam = Camera(hfov, position, direction);
-  // }
-
   Hit sceneIntersect(const Ray &r) {
     Hit h(Vec3(), Vec3(), 0);
     double best_dist = 1e20;
@@ -163,10 +159,10 @@ struct Scene3D {
     objects.emplace_back(std::make_unique<Sphere>(0.4, Vec3(0, 0.4, -1.5), Vec3(),
                                                   Vec3(1, 1, 0) * .999, REFR, "Yellow sphere"));
     // Right wall
-    objects.emplace_back(std::make_unique<Plane>(Vec3(1, 0, 0), Vec3(3, 0, 0), Vec3(),
+    objects.emplace_back(std::make_unique<Plane>(Vec3(1, 0, 0), Vec3(5, 0, 0), Vec3(),
                                                  Vec3(1, 0, 0) * .5, REFR, "Right wall"));
     // Left wall
-    objects.emplace_back(std::make_unique<Plane>(Vec3(-1, 0, 0), Vec3(-3, 0, 0), Vec3(),
+    objects.emplace_back(std::make_unique<Plane>(Vec3(-1, 0, 0), Vec3(-5, 0, 0), Vec3(),
                                                  Vec3(0, 0, 1) * .5, REFR, "Left wall"));
     // Floor
     objects.emplace_back(std::make_unique<Plane>(Vec3(0, 1, 0), Vec3(0, 0, 0), Vec3(),
