@@ -3,15 +3,11 @@
 #pragma warning(push, 0)
 #include <Eigen/Dense>
 #pragma warning(pop)
+#include "optick.h"
 #include <memory>
 #include <ostream>
 #include <spdlog/spdlog.h>
 #include <vector>
-#ifdef USE_OPTICK
-#include "optick.config.h"
-#include "optick.h"
-
-#endif
 
 #define INF 1e20
 
@@ -76,7 +72,9 @@ struct SceneObject {
   Obj_t type;
   std::string name = "";
   SceneObject(Vec3 p_, Vec3 e_, Vec3 c_, Refl_t refl_, std::string name)
-      : p(p_), e(e_), c(c_), refl(refl_), name(name) {}
+      : p(p_), e(e_), c(c_), refl(refl_), name(name) {
+    spdlog::info("{} created", name);
+  }
   virtual Vec3 getNormal([[maybe_unused]] Vec3 phit) = 0;
   virtual Hit intersect(const Ray &r) const          = 0;
   virtual ~SceneObject(){};
@@ -134,6 +132,7 @@ struct Plane : public SceneObject {
     }
   }
 };
+
 struct Scene3D {
   std::vector<std::unique_ptr<SceneObject>> objects;
   Camera cam;
@@ -179,9 +178,10 @@ struct Scene3D {
                                                  Vec3(1, 1, 1) * .4, REFR, "Ceiling"));
     // Front wall
     objects.emplace_back(std::make_unique<Plane>(Vec3(0, 0, -1), Vec3(0, 0, -5), Vec3(),
-                                                 Vec3(1, 1, 1) * .4, REFR, "Front wall"));
+                                                 Vec3(1, 0, 1) * .4, REFR, "Front wall"));
     // Back wall
     objects.emplace_back(std::make_unique<Plane>(Vec3(0, 0, -1), Vec3(0, 0, 6), Vec3(),
-                                                 Vec3(1, 1, 1) * .4, REFR, "Back wall"));
+                                                 Vec3(1, 0, 1) * .4, REFR, "Back wall"));
+    spdlog::info("Scene created with {} elements", objects.size());
   }
 };

@@ -10,25 +10,23 @@ set(ENABLE_OPTICK OFF)
 include_directories( ${CMAKE_SOURCE_DIR}/include )
 if (ENABLE_OPTICK)
 	add_definitions(-DUSE_OPTICK)
+  if (CMAKE_BUILD_TYPE EQUAL "DEBUG")
+    target_link_libraries(sfml_cuda PRIVATE ${CMAKE_SOURCE_DIR}/lib/x64/debug/OptickCore.lib)
+    add_custom_command(
+        TARGET sfml_cuda POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy 
+          ${CMAKE_SOURCE_DIR}/lib/x64/debug/OptickCore.dll
+          $<TARGET_FILE_DIR:sfml_cuda>)
 
-	target_link_libraries(sfml_cuda PRIVATE optimized ${CMAKE_SOURCE_DIR}/lib/x64/release/OptickCore.lib)
-	target_link_libraries(sfml_cuda PRIVATE debug ${CMAKE_SOURCE_DIR}/lib/x64/debug/OptickCore.lib)
+  else()
+    target_link_libraries(sfml_cuda PRIVATE ${CMAKE_SOURCE_DIR}/lib/x64/release/OptickCore.lib)
+    add_custom_command(
+        TARGET sfml_cuda POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy 
+          ${CMAKE_SOURCE_DIR}/lib/x64/release/OptickCore.dll
+          $<TARGET_FILE_DIR:sfml_cuda>)
 
-    if (CMAKE_BUILD_TYPE EQUAL "DEBUG")
-     add_custom_command(
-          TARGET sfml_cuda POST_BUILD
-          COMMAND ${CMAKE_COMMAND} -E copy 
-            ${CMAKE_SOURCE_DIR}/lib/x64/debug/OptickCore.dll
-            $<TARGET_FILE_DIR:sfml_cuda>)
-
-    else()
-        add_custom_command(
-          TARGET sfml_cuda POST_BUILD
-          COMMAND ${CMAKE_COMMAND} -E copy 
-            ${CMAKE_SOURCE_DIR}/lib/x64/release/OptickCore.dll
-            $<TARGET_FILE_DIR:sfml_cuda>)
-
-    endif()
+  endif()
 
 	set(COMMON_LIBS ${COMMON_LIBS} ProfilerCore64)
 endif()

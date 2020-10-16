@@ -11,10 +11,7 @@
 #include "pathtracer.hpp"
 #include "scenes/full_screen_opengl.h"
 
-#ifdef USE_OPTICK
 #include "optick.h"
-#include "optick.config.h"
-#endif
 
 #define LIN_SPEED 2
 #define TURN_SPEED 1
@@ -42,12 +39,12 @@ int main(int argc, const char **argv) {
   sf::Clock deltaClock;
 
   ctx.scene3d = std::make_unique<Scene3D>(
-      Camera(1, Vec3(0, 1.5, 5), 0, window.getSize().x, window.getSize().y));
+      Camera(1.4, Vec3(0, 1.5, 5), 0, window.getSize().x, window.getSize().y));
 
   while (window.isOpen()) {
-    #ifdef USE_OPTICK
+
     OPTICK_FRAME("MainThread");
-    #endif
+
     ImGui::SFML::Update(window, deltaClock.restart());
 
     scene.update(ctx);
