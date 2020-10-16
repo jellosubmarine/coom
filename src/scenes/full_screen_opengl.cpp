@@ -52,7 +52,6 @@ void FullScreenOpenGLScene::update(AppContext &ctx) {
   // CUDA_CALL(cudaGraphicsUnmapResources(1, &cudaVBO_, 0));
   screenBuffer_.resize(width * height);
 
-  double dist = 0;
   // Add pitch support by rotating cx and cy by pitch
   //#pragma omp parallel for schedule(dynamic)
   for (unsigned int row = 0; row < height; ++row) {
@@ -60,17 +59,16 @@ void FullScreenOpenGLScene::update(AppContext &ctx) {
       auto idx    = row * width + col;
       Vec3 color  = Vec3();
       int alpha   = 0;
-      int id      = -1;
       Ray camStep = ctx.scene3d->cam.castRay(col, row);
-      if (ctx.scene3d->sceneIntersect(camStep, dist, id)) {
-        color =
-            Vec3(ctx.scene3d->objects.at(id)->c[0] * 255, ctx.scene3d->objects.at(id)->c[1] * 255,
-                 ctx.scene3d->objects.at(id)->c[2] * 255);
-        alpha = 255 - int(dist) * 10;
+      Hit hit     = ctx.scene3d->sceneIntersect(camStep);
+      if (hit.dist != 0) {
+        color = Vec3(ctx.scene3d->objects.at(hit.id)->c[0] * 255,
+                     ctx.scene3d->objects.at(hit.id)->c[1] * 255,
+                     ctx.scene3d->objects.at(hit.id)->c[2] * 255);
+        alpha = 255 - int(hit.dist) * 10;
         if (alpha < 0) {
           alpha = 0;
         }
-        // spdlog::info("True");
       }
       screenBuffer_[idx].x                   = col;
       screenBuffer_[idx].y                   = row;

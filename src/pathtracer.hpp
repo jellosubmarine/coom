@@ -21,7 +21,8 @@ struct Hit {
   Vec3 point;
   Vec3 normal;
   double dist;
-  Hit(Vec3 point, Vec3 normal, double dist) : point(point), normal(normal), dist(dist) {}
+  int id;
+  Hit(Vec3 point, Vec3 normal, double dist) : point(point), normal(normal), dist(dist), id(-1) {}
 };
 
 struct Radiance {
@@ -31,33 +32,29 @@ struct Radiance {
 };
 
 struct Camera {
-  double hfov;
-  Vec3 position;
-  Vec3 direction;
-  Vec3 cx;
-  Vec3 cy;
+  double fov;
   double h;
   double w;
+  Eigen::Transform<double, 3, Eigen::Affine> t;
 
-  Camera(double hfov, Vec3 position, Vec3 direction, double height, double width)
-      : hfov(hfov), position(position), direction(direction), h(height), w(width) {
-    updateCxCy();
-  }
-  void updateCxCy() {
-    cx = Vec3(w * hfov / h, 0.0, 0.0);
-    cy = cx.cross(direction).normalized() * hfov;
+  Camera(double fov, Vec3 position, double angle, double height, double width)
+      : fov(fov), h(height), w(width), t(Eigen::Affine3d::Identity()) {
+    t.Identity();
+    t.translate(position);
+    t.rotate(Eigen::AngleAxis<double>(angle, Vec3::UnitY()));
   }
   Ray castRay(double x, double y) {
-    Vec3 d = cx * (x / w - 0.5) + cy * ((h - y) / h - 0.5) + direction;
-    d.normalize();
-    return Ray(position, d);
-  }
-  void moveLinear(Vec3 deltaPos) {
-    position += deltaPos; // needs to use rotation as well
-    updateCxCy();
-  }
+    Vec3 d(w * fov / h * (x / w - 0.5), (y / h - 0.5) * fov, -1);
+    d = t.linear() * d.normalized();
 
-  void turn(double angle) { updateCxCy(); }
+    return Ray(t.translation(), d);
+  }
+  void moveLinear(Vec3 deltaPos) { t = t.translate(deltaPos); }
+
+  void turn(double angle) {
+    Eigen::AngleAxis<double> aa(angle, Vec3::UnitY());
+    t = t * aa;
+  }
 };
 
 // Objects
@@ -81,22 +78,28 @@ struct Sphere : public SceneObject {
     type = SPHERE;
   }
   Vec3 getNormal(Vec3 phit) { return phit; }
-  // returns distance or 0 if no hit
+
   Hit intersect(const Ray &r) const {
-    // Solve t^2*d.d + 2*t*(o-p).d + (o-p).(o-p)-R^2 = 0
-    Vec3 op = r.o - p; // p is Sphere center (C)
+    Vec3 op = r.o - p;
     double t;
-    double b   = r.d.dot(op);                    // 1/2 b from quadratic eq. setup
-    double det = b * b - op.dot(op) + rad * rad; // (b^2-4ac)/4: a=1 because ray normalized
-    if (det <= 0) {                              // ray misses sphere
+    double b   = r.d.dot(op);
+    double det = b * b - op.dot(op) + rad * rad;
+    if (det <= 0) { // ray misses sphere
       return Hit(Vec3(), Vec3(), 0);
     } else {
       det = sqrt(det);
     }
-    t         = -b + det;
-    t         = t / 2;
-    Vec3 phit = r.o + r.d * t;
-    return Hit(phit, Vec3(), phit.norm());
+    t = -b - det;
+    if (t > 0) {
+      Vec3 phit = r.o + r.d * (t / 2);
+      return Hit(phit, Vec3(), phit.norm());
+    }
+    t = -b - det;
+    if (t > 0) {
+      Vec3 phit = r.o + r.d * (t / 2);
+      return Hit(phit, Vec3(), phit.norm());
+    }
+    return Hit(Vec3(), Vec3(), 0);
   }
 };
 
@@ -134,29 +137,30 @@ struct Scene3D {
   //   cam = Camera(hfov, position, direction);
   // }
 
-  bool sceneIntersect(const Ray &r, double &dist, int &id) {
-    double d;
-    double inf = dist = 1e20;
+  Hit sceneIntersect(const Ray &r) {
+    Hit h(Vec3(), Vec3(), 0);
+    double best_dist = 1e20;
 
     for (auto i = 0; i < objects.size(); ++i) {
-      d = objects.at(i)->intersect(r).dist;
-      if (d != 0 && d < dist) {
-        dist = d;
-        id   = i;
+      Hit d = objects.at(i)->intersect(r);
+      if (d.dist != 0 && d.dist < best_dist) {
+        best_dist = d.dist;
+        h         = d;
+        h.id      = i;
       }
     }
-    return dist < inf; // return true if t is not infinity
+    return h;
   }
 
   Radiance trace(const Ray &r) { return Radiance(0); }
 
   void generateScene() {
     objects.clear();
-    objects.emplace_back(std::make_unique<Sphere>(0.5, Vec3(-2, 0.5, 2), Vec3(),
+    objects.emplace_back(std::make_unique<Sphere>(0.5, Vec3(-2, 0.5, -2), Vec3(),
                                                   Vec3(0, 1, 1) * .999, REFR, "Cyan sphere"));
-    objects.emplace_back(std::make_unique<Sphere>(0.3, Vec3(-1, 0.3, 2), Vec3(),
+    objects.emplace_back(std::make_unique<Sphere>(0.3, Vec3(-1, 0.3, -2), Vec3(),
                                                   Vec3(1, 0, 1) * .999, REFR, "Purple sphere"));
-    objects.emplace_back(std::make_unique<Sphere>(0.4, Vec3(0, 0.4, 1.5), Vec3(),
+    objects.emplace_back(std::make_unique<Sphere>(0.4, Vec3(0, 0.4, -1.5), Vec3(),
                                                   Vec3(1, 1, 0) * .999, REFR, "Yellow sphere"));
     // Right wall
     objects.emplace_back(std::make_unique<Plane>(Vec3(1, 0, 0), Vec3(3, 0, 0), Vec3(),
@@ -171,7 +175,7 @@ struct Scene3D {
     objects.emplace_back(std::make_unique<Plane>(Vec3(0, -1, 0), Vec3(0, 3, 0), Vec3(),
                                                  Vec3(1, 1, 1) * .4, REFR, "Ceiling"));
     // Back wall
-    objects.emplace_back(std::make_unique<Plane>(Vec3(0, 0, -1), Vec3(0, 0, 5), Vec3(),
+    objects.emplace_back(std::make_unique<Plane>(Vec3(0, 0, -1), Vec3(0, 0, -5), Vec3(),
                                                  Vec3(1, 1, 1) * .4, REFR, "Back wall"));
   }
 };

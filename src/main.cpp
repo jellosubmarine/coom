@@ -11,7 +11,11 @@
 #include "pathtracer.hpp"
 #include "scenes/full_screen_opengl.h"
 
-void handleEvents(sf::RenderWindow &window, AppContext &ctx);
+#define LIN_SPEED 2
+#define TURN_SPEED 1
+
+void handleEvents(sf::RenderWindow &window);
+void handleMovement(AppContext &ctx);
 
 int main(int argc, const char **argv) {
   Options opt({std::next(argv), std::next(argv, argc)});
@@ -22,7 +26,7 @@ int main(int argc, const char **argv) {
   int gpuId = cuda::findBestDevice();
   cuda::gpuDeviceInit(gpuId);
 
-  sf::RenderWindow window(sf::VideoMode(opt.width, opt.height), "Doom soon TM",
+  sf::RenderWindow window(sf::VideoMode(opt.width, opt.height), "Coom",
                           sf::Style::Titlebar | sf::Style::Close);
   ImGui::SFML::Init(window);
   spdlog::info("SFML window created");
@@ -33,8 +37,7 @@ int main(int argc, const char **argv) {
   sf::Clock deltaClock;
 
   ctx.scene3d = std::make_shared<Scene3D>(
-      Camera(1, Vec3(0, 1.5, -5), Vec3(0, 0, 1), window.getSize().x, window.getSize().y));
-  // ctx.scene3d->initCam(1, Vec3(0, 1.5, -5), Vec3(0, 0, 1));
+      Camera(1, Vec3(0, 1.5, 5), 0, window.getSize().x, window.getSize().y));
 
   while (window.isOpen()) {
     ImGui::SFML::Update(window, deltaClock.restart());
@@ -51,7 +54,8 @@ int main(int argc, const char **argv) {
     ImGui::SFML::Render(window);
     window.display();
 
-    handleEvents(window, ctx);
+    handleEvents(window);
+    handleMovement(ctx);
     ctx.frame++;
     ctx.dtime = deltaClock.getElapsedTime().asSeconds();
   }
@@ -62,7 +66,12 @@ int main(int argc, const char **argv) {
   return 0;
 }
 
-void handleEvents(sf::RenderWindow &window, AppContext &ctx) {
+int forward = 0;
+// 1 is right, -1 is left
+int sideways = 0;
+int turning  = 0;
+
+void handleEvents(sf::RenderWindow &window) {
   sf::Event event{};
   while (window.pollEvent(event)) {
     ImGui::SFML::ProcessEvent(event);
@@ -71,57 +80,77 @@ void handleEvents(sf::RenderWindow &window, AppContext &ctx) {
       window.close();
     }
 
-    if (event.type == sf::Event::KeyPressed) {
-      if (event.key.code == sf::Keyboard::Escape) {
+    if (event.key.code == sf::Keyboard::Escape) {
+      if (event.type == sf::Event::KeyPressed) {
         window.close();
       }
-      if (event.key.code == sf::Keyboard::PageUp) {
-        spdlog::info("Select next");
-      }
-      if (event.key.code == sf::Keyboard::PageDown) {
-        spdlog::info("Select previous");
-      }
+    }
+    // if (event.key.code == sf::Keyboard::PageUp) {
+    //   spdlog::info("Select next");
+    // }
+    // if (event.key.code == sf::Keyboard::PageDown) {
+    //   spdlog::info("Select previous");
+    // }
 
-      if (event.key.code == sf::Keyboard::Up) {
-        if (event.key.shift) {
-          spdlog::info("Move up");
-
-        } else {
-          spdlog::info("Move forward");
-          ctx.scene3d->cam.moveLinear(Vec3(0, 0, 1) * ctx.dtime);
-        }
-      }
-      if (event.key.code == sf::Keyboard::Down) {
-        if (event.key.shift) {
-          spdlog::info("Move down");
-
-        } else {
-          spdlog::info("Move backward");
-          ctx.scene3d->cam.moveLinear(Vec3(0, 0, -1) * ctx.dtime);
-        }
-      }
-      if (event.key.code == sf::Keyboard::Left) {
-        if (event.key.shift) {
-          spdlog::info("Strafe left");
-          ctx.scene3d->cam.moveLinear(Vec3(-1, 0, 0) * ctx.dtime);
-
-        } else {
-          spdlog::info("Turn left");
-        }
-      }
-      if (event.key.code == sf::Keyboard::Right) {
-        if (event.key.shift) {
-          spdlog::info("Strafe right");
-
-          ctx.scene3d->cam.moveLinear(Vec3(1, 0, 0) * ctx.dtime);
-
-        } else {
-          spdlog::info("Turn right");
-        }
-      }
-      if (event.key.code == sf::Keyboard::F) {
-        spdlog::info("Fire");
+    if (event.key.code == sf::Keyboard::Up) {
+      if (event.type == sf::Event::KeyPressed) {
+        // spdlog::info("Move forward");
+        forward = 1;
+      } else {
+        forward = 0;
       }
     }
+    if (event.key.code == sf::Keyboard::Down) {
+      if (event.type == sf::Event::KeyPressed) {
+        // spdlog::info("Move backward");
+        forward = -1;
+      } else {
+        forward = 0;
+      }
+    }
+    if (event.key.code == sf::Keyboard::Left) {
+      if (event.type == sf::Event::KeyPressed) {
+        if (event.key.shift) {
+          // spdlog::info("Strafe left");
+          sideways = -1;
+
+        } else {
+          // spdlog::info("Turn left");
+          turning = -1;
+        }
+      } else {
+        turning  = 0;
+        sideways = 0;
+      }
+    }
+    if (event.key.code == sf::Keyboard::Right) {
+      if (event.type == sf::Event::KeyPressed) {
+        if (event.key.shift) {
+          // spdlog::info("Strafe right");
+          sideways = 1;
+        } else {
+          // spdlog::info("Turn right");
+          turning = 1;
+        }
+      } else {
+        turning  = 0;
+        sideways = 0;
+      }
+    }
+    if (event.key.code == sf::Keyboard::F) {
+      // spdlog::info("Fire");
+    }
+  }
+}
+
+void handleMovement(AppContext &ctx) {
+  if (forward != 0 || sideways != 0) {
+    Vec3 lin{0, 0, 0};
+    lin = lin + -forward * Vec3::UnitZ() * ctx.dtime * LIN_SPEED;
+    lin = lin + sideways * Vec3::UnitX() * ctx.dtime * LIN_SPEED;
+    ctx.scene3d->cam.moveLinear(lin);
+  }
+  if (turning != 0) {
+    ctx.scene3d->cam.turn(turning * -1 * ctx.dtime * TURN_SPEED);
   }
 }
