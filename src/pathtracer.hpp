@@ -87,26 +87,21 @@ struct Sphere : public SceneObject {
   Vec3 getNormal(Vec3 phit) { return phit; }
 
   Hit intersect(const Ray &r) const {
-    Vec3 op = r.o - p;
-    double t;
-    double b   = r.d.dot(op);
-    double det = b * b - op.dot(op) + rad * rad;
-    if (det <= 0) { // ray misses sphere
+    Vec3 e   = p - r.o;
+    double a = e.dot(r.d);
+
+    double fSq = rad * rad - e.dot(e) + a * a;
+
+    if (fSq < 0) {
       return Hit();
-    } else {
-      det = sqrt(det);
     }
-    t = -b - det;
-    if (t > 0) {
-      Vec3 phit = r.o + r.d * (t / 2.0);
-      return Hit(phit, Vec3(), phit.norm());
+
+    double t = a - sqrt(fSq);
+    if (t < 0) {
+      return Hit();
     }
-    t = -b + det;
-    if (t > 0) {
-      Vec3 phit = r.o + r.d * (t / 2.0);
-      return Hit(phit, Vec3(), phit.norm());
-    }
-    return Hit();
+    Vec3 phit = r.o + r.d * t;
+    return Hit(phit, Vec3(), t);
   }
 };
 
