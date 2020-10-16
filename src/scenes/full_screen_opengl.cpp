@@ -58,17 +58,18 @@ void FullScreenOpenGLScene::update(AppContext &ctx) {
     for (unsigned int col = 0; col < width; ++col) {
       auto idx    = row * width + col;
       Vec3 color  = Vec3();
-      int alpha   = 0;
+      int alpha   = 255;
       Ray camStep = ctx.scene3d->cam.castRay(col, row);
       Hit hit     = ctx.scene3d->sceneIntersect(camStep);
-      if (hit.dist != 0) {
+      if (hit) {
+
         color = Vec3(ctx.scene3d->objects.at(hit.id)->c[0] * 255,
                      ctx.scene3d->objects.at(hit.id)->c[1] * 255,
                      ctx.scene3d->objects.at(hit.id)->c[2] * 255);
-        alpha = 255 - int(hit.dist) * 10;
-        if (alpha < 0) {
-          alpha = 0;
-        }
+        // alpha = 255 - int(hit.dist) * 10;
+        // if (alpha < 0) {
+        //   alpha = 0;
+        // }
       }
       screenBuffer_[idx].x                   = col;
       screenBuffer_[idx].y                   = row;

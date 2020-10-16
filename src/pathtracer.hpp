@@ -5,7 +5,10 @@
 #pragma warning(pop)
 #include <memory>
 #include <ostream>
+#include <spdlog/spdlog.h>
 #include <vector>
+
+#define INF 1e20
 
 using Vec3 = Eigen::Vector3d;
 
@@ -22,7 +25,11 @@ struct Hit {
   Vec3 normal;
   double dist;
   int id;
+  Hit() : point(Vec3()), normal(Vec3()), dist(INF), id(-1) {}
   Hit(Vec3 point, Vec3 normal, double dist) : point(point), normal(normal), dist(dist), id(-1) {}
+  bool operator<(const Hit &h1) { return dist < h1.dist; }
+  bool operator>(const Hit &h1) { return dist > h1.dist; }
+  operator bool() { return id != -1; }
 };
 
 struct Radiance {
@@ -85,7 +92,7 @@ struct Sphere : public SceneObject {
     double b   = r.d.dot(op);
     double det = b * b - op.dot(op) + rad * rad;
     if (det <= 0) { // ray misses sphere
-      return Hit(Vec3(), Vec3(), 0);
+      return Hit();
     } else {
       det = sqrt(det);
     }
@@ -99,7 +106,7 @@ struct Sphere : public SceneObject {
       Vec3 phit = r.o + r.d * (t / 2.0);
       return Hit(phit, Vec3(), phit.norm());
     }
-    return Hit(Vec3(), Vec3(), 0);
+    return Hit();
   }
 };
 
@@ -116,11 +123,11 @@ struct Plane : public SceneObject {
     double eps = 1e-4;
 
     if (std::abs(r.d.dot(normal)) <= eps) { // ray misses plane
-      return Hit(Vec3(), Vec3(), 0);
+      return Hit();
     } else {
       double dist = (p - r.o).dot(normal) / r.d.dot(normal);
       if (dist < 0) {
-        return Hit(Vec3(), Vec3(), 0);
+        return Hit();
       } else {
         return Hit(r.o + dist * r.d, normal, dist);
       }
@@ -134,15 +141,13 @@ struct Scene3D {
   Scene3D(Camera cam) : cam(cam) { generateScene(); }
 
   Hit sceneIntersect(const Ray &r) {
-    Hit h(Vec3(), Vec3(), 0);
-    double best_dist = 1e20;
+    Hit h;
 
     for (auto i = 0; i < objects.size(); ++i) {
       Hit d = objects.at(i)->intersect(r);
-      if (d.dist != 0 && d.dist < best_dist) {
-        best_dist = d.dist;
-        h         = d;
-        h.id      = i;
+      if (d < h) {
+        h    = d;
+        h.id = i;
       }
     }
     return h;
@@ -158,6 +163,8 @@ struct Scene3D {
                                                   Vec3(1, 0, 1) * .999, REFR, "Purple sphere"));
     objects.emplace_back(std::make_unique<Sphere>(0.4, Vec3(0, 0.4, -1.5), Vec3(),
                                                   Vec3(1, 1, 0) * .999, REFR, "Yellow sphere"));
+    objects.emplace_back(std::make_unique<Sphere>(0.5, Vec3(0, 0.5, 4), Vec3(),
+                                                  Vec3(1, 0, 0) * .999, REFR, "Red sphere"));
     // Right wall
     objects.emplace_back(std::make_unique<Plane>(Vec3(1, 0, 0), Vec3(5, 0, 0), Vec3(),
                                                  Vec3(1, 0, 0) * .5, REFR, "Right wall"));
@@ -170,8 +177,11 @@ struct Scene3D {
     // Ceiling
     objects.emplace_back(std::make_unique<Plane>(Vec3(0, -1, 0), Vec3(0, 3, 0), Vec3(),
                                                  Vec3(1, 1, 1) * .4, REFR, "Ceiling"));
-    // Back wall
+    // Front wall
     objects.emplace_back(std::make_unique<Plane>(Vec3(0, 0, -1), Vec3(0, 0, -5), Vec3(),
+                                                 Vec3(1, 1, 1) * .4, REFR, "Front wall"));
+    // Back wall
+    objects.emplace_back(std::make_unique<Plane>(Vec3(0, 0, -1), Vec3(0, 0, 6), Vec3(),
                                                  Vec3(1, 1, 1) * .4, REFR, "Back wall"));
   }
 };
