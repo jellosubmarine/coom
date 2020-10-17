@@ -18,6 +18,7 @@
 
 void handleEvents(sf::RenderWindow &window);
 void handleMovement(AppContext &ctx);
+void createGUI();
 
 int main(int argc, const char **argv) {
   Options opt({std::next(argv), std::next(argv, argc)});

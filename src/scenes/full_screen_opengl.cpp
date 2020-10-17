@@ -8,6 +8,9 @@
 #include <cuda_gl_interop.h>
 #include <math.h>
 
+// Ideally option, not a hard define
+#define SAMPLES_PER_PIXEL 2
+
 FullScreenOpenGLScene::FullScreenOpenGLScene(sf::RenderWindow const &window) {
   glewInit();
   if (!glewIsSupported("GL_VERSION_2_0 ")) {
@@ -54,27 +57,30 @@ void FullScreenOpenGLScene::update(AppContext &ctx) {
   // CUDA_CALL(cudaGraphicsUnmapResources(1, &cudaVBO_, 0));
   // screenBuffer_.resize(width * height);
 
-// Add pitch support by rotating cx and cy by pitch
+  // Add pitch support by rotating cx and cy by pitch
+  auto sampleScale = 1.0 / SAMPLES_PER_PIXEL;
 #pragma omp parallel for schedule(dynamic)
   for (int row = 0; row < (int)height; ++row) {
     for (int col = 0; col < (int)width; ++col) {
-      auto idx            = row * width + col;
-      Vec3 color          = Vec3();
-      unsigned char alpha = 255;
-      Ray camStep         = ctx.scene3d->cam.castRay(col, row);
-      Hit hit             = ctx.scene3d->sceneIntersect(camStep);
-      if (hit) {
-
-        color = Vec3(ctx.scene3d->objects.at(hit.id)->mat.baseColor[0] * 255,
-                     ctx.scene3d->objects.at(hit.id)->mat.baseColor[1] * 255,
-                     ctx.scene3d->objects.at(hit.id)->mat.baseColor[2] * 255);
+      auto idx   = row * width + col;
+      Vec3 color = Vec3(0, 0, 0);
+      // Stupid antialiasing, because random took too much fps
+      for (auto s = 0; s < SAMPLES_PER_PIXEL; ++s) {
+        Ray camStep =
+            ctx.scene3d->cam.castRay(col + s * (sampleScale / 2), row + s * (sampleScale / 2));
+        Hit hit = ctx.scene3d->sceneIntersect(camStep);
+        if (hit) {
+          color += ctx.scene3d->objects.at(hit.id)->mat.baseColor * 255;
+        }
       }
+      color                                  = color * sampleScale;
+      color                                  = clampVec(color, Vec3(), Vec3(255, 255, 255));
       screenBuffer_[idx].x                   = (float)col;
       screenBuffer_[idx].y                   = (float)row;
       screenBuffer_[idx].color.components[0] = (unsigned char)color[0];
       screenBuffer_[idx].color.components[1] = (unsigned char)color[1];
       screenBuffer_[idx].color.components[2] = (unsigned char)color[2];
-      screenBuffer_[idx].color.components[3] = alpha;
+      screenBuffer_[idx].color.components[3] = 255;
     }
   }
   glBindBuffer(GL_ARRAY_BUFFER, glVBO_);

@@ -6,12 +6,31 @@
 #include "optick.h"
 #include <memory>
 #include <ostream>
+#include <random>
 #include <spdlog/spdlog.h>
 #include <vector>
 
 #define INF 1e20
 
 using Vec3 = Eigen::Vector3d;
+
+inline double random_double() {
+  static std::uniform_real_distribution<double> distribution(0.0, 1.0);
+  static std::mt19937 generator;
+  return distribution(generator);
+}
+
+inline Vec3 clampVec(Vec3 in, Vec3 lower, Vec3 upper) {
+  for (auto i = 0; i < 4; ++i) {
+    if (in[i] < lower[i]) {
+      in[i] = lower[i];
+    }
+    if (in[i] > upper[i]) {
+      in[i] = upper[i];
+    }
+  }
+  return in;
+}
 
 struct Ray {
   Vec3 o, d; // origin and direction
@@ -140,11 +159,11 @@ struct Plane : public SceneObject {
   }
 };
 
-struct Projectile : public Sphere {
-  Projectile() : Sphere() { type = PROJECTILE; }
-  // direction, speed
-  // update function
-};
+// struct Projectile : public Sphere {
+//   Projectile() : Sphere() { type = PROJECTILE; }
+//   // direction, speed
+//   // update function
+// };
 
 struct Scene3D {
   std::vector<std::unique_ptr<SceneObject>> objects;
@@ -170,31 +189,34 @@ struct Scene3D {
   void generateScene() {
     objects.clear();
     objects.emplace_back(std::make_unique<Sphere>(
-        0.5, Vec3(-2, 0.5, -2), Material(Vec3(), Vec3(0, 1, 1) * .999, REFR), "Cyan sphere"));
+        0.5, Vec3(-2, 0.5, -2), Material(Vec3(), Vec3(0, 1, 1) * .999, DIFF), "Cyan sphere"));
     objects.emplace_back(std::make_unique<Sphere>(
-        0.3, Vec3(-1, 0.3, -2), Material(Vec3(), Vec3(1, 0, 1) * .999, REFR), "Purple sphere"));
+        0.3, Vec3(-1, 0.3, -2), Material(Vec3(), Vec3(1, 0, 1) * .999, DIFF), "Purple sphere"));
     objects.emplace_back(std::make_unique<Sphere>(
-        0.4, Vec3(0, 0.4, -1.5), Material(Vec3(), Vec3(1, 1, 0) * .999, REFR), "Yellow sphere"));
+        0.4, Vec3(0, 0.4, -1.5), Material(Vec3(), Vec3(1, 1, 0) * .999, DIFF), "Yellow sphere"));
     objects.emplace_back(std::make_unique<Sphere>(
-        0.5, Vec3(0, 0.5, 4), Material(Vec3(), Vec3(1, 0, 0) * .999, REFR), "Red sphere"));
+        0.4, Vec3(0, 3, -1), Material(Vec3(5, 5, 5), Vec3(1, 1, 1), DIFF), "Ceiling light"));
+
+    objects.emplace_back(std::make_unique<Sphere>(
+        0.5, Vec3(0, 0.5, 4), Material(Vec3(), Vec3(1, 0, 0) * .999, DIFF), "Red sphere"));
     // Right wall
     objects.emplace_back(std::make_unique<Plane>(
-        Vec3(1, 0, 0), Vec3(5, 0, 0), Material(Vec3(), Vec3(1, 0, 0) * .5, REFR), "Right wall"));
+        Vec3(1, 0, 0), Vec3(5, 0, 0), Material(Vec3(), Vec3(1, 0, 0) * .5, DIFF), "Right wall"));
     // Left wall
     objects.emplace_back(std::make_unique<Plane>(
-        Vec3(-1, 0, 0), Vec3(-5, 0, 0), Material(Vec3(), Vec3(0, 0, 1) * .5, REFR), "Left wall"));
+        Vec3(-1, 0, 0), Vec3(-5, 0, 0), Material(Vec3(), Vec3(0, 0, 1) * .5, DIFF), "Left wall"));
     // Floor
     objects.emplace_back(std::make_unique<Plane>(
-        Vec3(0, 1, 0), Vec3(0, 0, 0), Material(Vec3(), Vec3(0, 1, 0) * .5, REFR), "Floor"));
+        Vec3(0, 1, 0), Vec3(0, 0, 0), Material(Vec3(), Vec3(0, 1, 0) * .5, DIFF), "Floor"));
     // Ceiling
     objects.emplace_back(std::make_unique<Plane>(
-        Vec3(0, -1, 0), Vec3(0, 3, 0), Material(Vec3(), Vec3(1, 1, 1) * .4, REFR), "Ceiling"));
+        Vec3(0, -1, 0), Vec3(0, 3, 0), Material(Vec3(), Vec3(1, 1, 1) * .4, DIFF), "Ceiling"));
     // Front wall
     objects.emplace_back(std::make_unique<Plane>(
-        Vec3(0, 0, -1), Vec3(0, 0, -5), Material(Vec3(), Vec3(1, 0, 1) * .4, REFR), "Front wall"));
+        Vec3(0, 0, -1), Vec3(0, 0, -5), Material(Vec3(), Vec3(1, 0, 1) * .4, DIFF), "Front wall"));
     // Back wall
     objects.emplace_back(std::make_unique<Plane>(
-        Vec3(0, 0, -1), Vec3(0, 0, 6), Material(Vec3(), Vec3(1, 0, 1) * .4, REFR), "Back wall"));
+        Vec3(0, 0, -1), Vec3(0, 0, 6), Material(Vec3(), Vec3(1, 0, 1) * .4, DIFF), "Back wall"));
     spdlog::info("Scene created with {} elements", objects.size());
   }
 };
