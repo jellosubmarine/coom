@@ -46,7 +46,7 @@ FullScreenOpenGLScene::~FullScreenOpenGLScene() { glDeleteBuffers(1, &glVBO_); }
 
 void FullScreenOpenGLScene::update(AppContext &ctx) {
 
-  // OPTICK_EVENT();
+  OPTICK_EVENT();
   // CUDA_CALL(cudaGraphicsMapResources(1, &cudaVBO_, 0));
   // size_t num_bytes;
   // CUDA_CALL(cudaGraphicsResourceGetMappedPointer((void **)&vboPtr_, &num_bytes, cudaVBO_));
@@ -65,13 +65,9 @@ void FullScreenOpenGLScene::update(AppContext &ctx) {
       Hit hit             = ctx.scene3d->sceneIntersect(camStep);
       if (hit) {
 
-        color = Vec3(ctx.scene3d->objects.at(hit.id)->c[0] * 255,
-                     ctx.scene3d->objects.at(hit.id)->c[1] * 255,
-                     ctx.scene3d->objects.at(hit.id)->c[2] * 255);
-        // alpha = 255 - int(hit.dist) * 10;
-        // if (alpha < 0) {
-        //   alpha = 0;
-        // }
+        color = Vec3(ctx.scene3d->objects.at(hit.id)->mat.baseColor[0] * 255,
+                     ctx.scene3d->objects.at(hit.id)->mat.baseColor[1] * 255,
+                     ctx.scene3d->objects.at(hit.id)->mat.baseColor[2] * 255);
       }
       screenBuffer_[idx].x                   = (float)col;
       screenBuffer_[idx].y                   = (float)row;
