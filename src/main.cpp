@@ -54,6 +54,7 @@ int main(int argc, const char **argv) {
     ImGui::Begin("FPS");
     ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
     ImGui::Text("Frame %d", ctx.frame);
+    ImGui::Checkbox("Enable PT", &ctx.enablePT);
     ImGui::End();
 
     window.clear();
