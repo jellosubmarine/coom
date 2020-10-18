@@ -11,6 +11,8 @@
 #include <vector>
 
 #define INF 1e20
+#define DEPTH_LIMIT 4
+#define EPSILON 1e-4
 
 using Vec3 = Eigen::Vector3d;
 
@@ -19,6 +21,14 @@ inline double random_double() {
   static std::mt19937 generator;
   return distribution(generator);
 }
+
+inline Vec3 UniformSampleHemisphere(double u0, double u1) {
+  double r   = std::sqrt(std::max(0.0, 1.0 - u0 * u0));
+  double phi = 2 * EIGEN_PI * u1;
+  return Vec3(r * std::cos(phi), r * std::sin(phi), u0);
+}
+
+inline double UniformHemispherePdf() { return 1 / (2 * EIGEN_PI); }
 
 inline Vec3 clampVec(Vec3 in, Vec3 lower, Vec3 upper) {
   for (auto i = 0; i < 4; ++i) {
@@ -52,18 +62,41 @@ struct Hit {
   operator bool() { return id != -1; }
 };
 
+struct MaterialResponse {
+  Ray ray;
+  Vec3 transmittance;
+  MaterialResponse(Ray ray, Vec3 transmittance) : ray(ray), transmittance(transmittance) {}
+};
+
 struct Material {
-  Vec3 emission;
+  Vec3 emissivity;
   Vec3 baseColor;
   Refl_t type;
-  Material(Vec3 emission, Vec3 baseColor, Refl_t type)
-      : emission(emission), baseColor(baseColor), type(type) {}
+  Material(Vec3 emissivity, Vec3 baseColor, Refl_t type)
+      : emissivity(emissivity), baseColor(baseColor), type(type) {}
+  // Totally not copied code, needs improving
+  MaterialResponse bsdf(Hit const &h) {
+    Vec3 hemi      = UniformSampleHemisphere(random_double(), random_double());
+    Vec3 w         = h.normal;
+    Vec3 u         = (std::abs(w.x()) > .1f ? Vec3::UnitY() : Vec3::UnitX()).cross(w).normalized();
+    Vec3 v         = w.cross(u);
+    Vec3 direction = (u * hemi.x() + v * hemi.y() + w * hemi.z()).normalized();
+    Vec3 origin    = h.point + h.normal * EPSILON;
+    return MaterialResponse(Ray(origin, direction),
+                            (baseColor / EIGEN_PI) *
+                                (h.normal.dot(direction) / UniformHemispherePdf()));
+  }
 };
 
 struct Radiance {
   Vec3 radiance;
   Radiance(double x) : radiance(Vec3(x, x, x)) {}
   Radiance(Vec3 radiance) : radiance(radiance) {}
+  Radiance operator+(const Radiance &r1) { return Radiance(radiance + r1.radiance); }
+  Vec3 toSRGB() {
+    // TODO
+    return radiance;
+  }
 };
 
 struct Camera {
@@ -184,39 +217,59 @@ struct Scene3D {
     return h;
   }
 
-  Radiance trace(const Ray &r) { return Radiance(0); }
+  // Write this to Vec3, move Radiance struct to for loop instead, no need to carry it everywhere
+  Vec3 radiance(const Ray &r, int depth) {
+    Hit h = sceneIntersect(r);
+    if (!h) {
+      return Vec3(0, 0, 0);
+    }
+    Vec3 result = objects.at(h.id)->mat.emissivity;
+    if (++depth > DEPTH_LIMIT) {
+      return result;
+    }
+    auto response = objects.at(h.id)->mat.bsdf(h);
+    return result + radiance(response.ray, depth).cwiseProduct(response.transmittance);
+  }
 
   void generateScene() {
     objects.clear();
     objects.emplace_back(std::make_unique<Sphere>(
-        0.5, Vec3(-2, 0.5, -2), Material(Vec3(), Vec3(0, 1, 1) * .999, DIFF), "Cyan sphere"));
+        0.5, Vec3(-2, 0.5, -2), Material(Vec3(0, 0, 0), Vec3(0, 1, 1) * .999, DIFF),
+        "Cyan sphere"));
     objects.emplace_back(std::make_unique<Sphere>(
-        0.3, Vec3(-1, 0.3, -2), Material(Vec3(), Vec3(1, 0, 1) * .999, DIFF), "Purple sphere"));
+        0.3, Vec3(-1, 0.3, -2), Material(Vec3(0, 0, 0), Vec3(1, 0, 1) * .999, DIFF),
+        "Purple sphere"));
     objects.emplace_back(std::make_unique<Sphere>(
-        0.4, Vec3(0, 0.4, -1.5), Material(Vec3(), Vec3(1, 1, 0) * .999, DIFF), "Yellow sphere"));
+        0.4, Vec3(0, 0.4, -1.5), Material(Vec3(0, 0, 0), Vec3(1, 1, 0) * .999, DIFF),
+        "Yellow sphere"));
     objects.emplace_back(std::make_unique<Sphere>(
         0.4, Vec3(0, 3, -1), Material(Vec3(5, 5, 5), Vec3(1, 1, 1), DIFF), "Ceiling light"));
 
     objects.emplace_back(std::make_unique<Sphere>(
-        0.5, Vec3(0, 0.5, 4), Material(Vec3(), Vec3(1, 0, 0) * .999, DIFF), "Red sphere"));
+        0.5, Vec3(0, 0.5, 4), Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .999, DIFF), "Red sphere"));
     // Right wall
-    objects.emplace_back(std::make_unique<Plane>(
-        Vec3(1, 0, 0), Vec3(5, 0, 0), Material(Vec3(), Vec3(1, 0, 0) * .5, DIFF), "Right wall"));
+    objects.emplace_back(std::make_unique<Plane>(Vec3(1, 0, 0), Vec3(5, 0, 0),
+                                                 Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .5, DIFF),
+                                                 "Right wall"));
     // Left wall
-    objects.emplace_back(std::make_unique<Plane>(
-        Vec3(-1, 0, 0), Vec3(-5, 0, 0), Material(Vec3(), Vec3(0, 0, 1) * .5, DIFF), "Left wall"));
+    objects.emplace_back(std::make_unique<Plane>(Vec3(-1, 0, 0), Vec3(-5, 0, 0),
+                                                 Material(Vec3(0, 0, 0), Vec3(0, 0, 1) * .5, DIFF),
+                                                 "Left wall"));
     // Floor
     objects.emplace_back(std::make_unique<Plane>(
-        Vec3(0, 1, 0), Vec3(0, 0, 0), Material(Vec3(), Vec3(0, 1, 0) * .5, DIFF), "Floor"));
+        Vec3(0, 1, 0), Vec3(0, 0, 0), Material(Vec3(0, 0, 0), Vec3(0, 1, 0) * .5, DIFF), "Floor"));
     // Ceiling
-    objects.emplace_back(std::make_unique<Plane>(
-        Vec3(0, -1, 0), Vec3(0, 3, 0), Material(Vec3(), Vec3(1, 1, 1) * .4, DIFF), "Ceiling"));
+    objects.emplace_back(std::make_unique<Plane>(Vec3(0, -1, 0), Vec3(0, 3, 0),
+                                                 Material(Vec3(0, 0, 0), Vec3(1, 1, 1) * .4, DIFF),
+                                                 "Ceiling"));
     // Front wall
-    objects.emplace_back(std::make_unique<Plane>(
-        Vec3(0, 0, -1), Vec3(0, 0, -5), Material(Vec3(), Vec3(1, 0, 1) * .4, DIFF), "Front wall"));
+    objects.emplace_back(std::make_unique<Plane>(Vec3(0, 0, -1), Vec3(0, 0, -5),
+                                                 Material(Vec3(0, 0, 0), Vec3(1, 0, 1) * .4, DIFF),
+                                                 "Front wall"));
     // Back wall
-    objects.emplace_back(std::make_unique<Plane>(
-        Vec3(0, 0, -1), Vec3(0, 0, 6), Material(Vec3(), Vec3(1, 0, 1) * .4, DIFF), "Back wall"));
+    objects.emplace_back(std::make_unique<Plane>(Vec3(0, 0, -1), Vec3(0, 0, 6),
+                                                 Material(Vec3(0, 0, 0), Vec3(1, 0, 1) * .4, DIFF),
+                                                 "Back wall"));
     spdlog::info("Scene created with {} elements", objects.size());
   }
 };

@@ -9,7 +9,7 @@
 #include <math.h>
 
 // Ideally option, not a hard define
-#define SAMPLES_PER_PIXEL 2
+#define SAMPLES_PER_PIXEL 1
 
 FullScreenOpenGLScene::FullScreenOpenGLScene(sf::RenderWindow const &window) {
   glewInit();
@@ -66,20 +66,22 @@ void FullScreenOpenGLScene::update(AppContext &ctx) {
       Vec3 color = Vec3(0, 0, 0);
       // Stupid antialiasing, because random took too much fps
       for (auto s = 0; s < SAMPLES_PER_PIXEL; ++s) {
-        Ray camStep =
+        Ray ray =
             ctx.scene3d->cam.castRay(col + s * (sampleScale / 2), row + s * (sampleScale / 2));
-        Hit hit = ctx.scene3d->sceneIntersect(camStep);
-        if (hit) {
-          color += ctx.scene3d->objects.at(hit.id)->mat.baseColor * 255;
-        }
+        Radiance rad = Radiance(ctx.scene3d->radiance(ray, 0));
+        color += rad.toSRGB();
+        // Hit hit = ctx.scene3d->sceneIntersect(camStep);
+        // if (hit) {
+        //   color += ctx.scene3d->objects.at(hit.id)->mat.baseColor * 255;
+        // }
       }
-      color                                  = color * sampleScale;
-      color                                  = clampVec(color, Vec3(), Vec3(255, 255, 255));
+      color                                  = color * sampleScale * 255;
+      color                                  = clampVec(color, Vec3(0, 0, 0), Vec3(255, 255, 255));
       screenBuffer_[idx].x                   = (float)col;
       screenBuffer_[idx].y                   = (float)row;
-      screenBuffer_[idx].color.components[0] = (unsigned char)color[0];
-      screenBuffer_[idx].color.components[1] = (unsigned char)color[1];
-      screenBuffer_[idx].color.components[2] = (unsigned char)color[2];
+      screenBuffer_[idx].color.components[0] = (unsigned char)color.x();
+      screenBuffer_[idx].color.components[1] = (unsigned char)color.y();
+      screenBuffer_[idx].color.components[2] = (unsigned char)color.z();
       screenBuffer_[idx].color.components[3] = 255;
     }
   }
