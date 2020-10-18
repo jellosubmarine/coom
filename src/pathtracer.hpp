@@ -11,8 +11,11 @@
 #include <vector>
 
 #define INF 1e20
-#define DEPTH_LIMIT 4
 #define EPSILON 1e-4
+// Ideally option, not a hard define
+#define SAMPLES_PER_PIXEL 10
+#define AA_SAMPLES_PER_PIXEL 1
+#define DEPTH_LIMIT 4
 
 using Vec3 = Eigen::Vector3d;
 
@@ -94,8 +97,11 @@ struct Radiance {
   Radiance(Vec3 radiance) : radiance(radiance) {}
   Radiance operator+(const Radiance &r1) { return Radiance(radiance + r1.radiance); }
   Vec3 toSRGB() {
-    // TODO
-    return radiance;
+    Vec3 srgb = Vec3(0, 0, 0);
+    for (auto i = 0; i < 3; ++i) {
+      srgb[i] = std::pow(radiance[i] * (1.0 / SAMPLES_PER_PIXEL), 1 / 2.2);
+    }
+    return srgb;
   }
 };
 
@@ -234,36 +240,37 @@ struct Scene3D {
   void generateScene() {
     objects.clear();
     objects.emplace_back(std::make_unique<Sphere>(
-        0.5, Vec3(-2, 0.5, -2), Material(Vec3(0, 0, 0), Vec3(0, 1, 1) * .999, DIFF),
+        0.5, Vec3(-2, 0.5, -1), Material(Vec3(0, 0, 0), Vec3(0, 1, 1) * .999, DIFF),
         "Cyan sphere"));
     objects.emplace_back(std::make_unique<Sphere>(
-        0.3, Vec3(-1, 0.3, -2), Material(Vec3(0, 0, 0), Vec3(1, 0, 1) * .999, DIFF),
+        0.3, Vec3(0, 0.3, -2), Material(Vec3(0, 0, 0), Vec3(1, 0, 1) * .999, DIFF),
         "Purple sphere"));
     objects.emplace_back(std::make_unique<Sphere>(
-        0.4, Vec3(0, 0.4, -1.5), Material(Vec3(0, 0, 0), Vec3(1, 1, 0) * .999, DIFF),
+        0.4, Vec3(2, 0.4, -1.5), Material(Vec3(0, 0, 0), Vec3(1, 1, 0) * .999, DIFF),
         "Yellow sphere"));
     objects.emplace_back(std::make_unique<Sphere>(
-        0.4, Vec3(0, 3, -1), Material(Vec3(5, 5, 5), Vec3(1, 1, 1), DIFF), "Ceiling light"));
-
+        1, Vec3(-2, 3, -1), Material(Vec3(1, 1, 1), Vec3(1, 1, 1), DIFF), "Ceiling light"));
+    objects.emplace_back(std::make_unique<Sphere>(
+        1, Vec3(2, 3, -1), Material(Vec3(1, 1, 1), Vec3(1, 1, 1), DIFF), "Ceiling light 2"));
     objects.emplace_back(std::make_unique<Sphere>(
         0.5, Vec3(0, 0.5, 4), Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .999, DIFF), "Red sphere"));
     // Right wall
-    objects.emplace_back(std::make_unique<Plane>(Vec3(1, 0, 0), Vec3(5, 0, 0),
+    objects.emplace_back(std::make_unique<Plane>(Vec3(-1, 0, 0), Vec3(5, 0, 0),
                                                  Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .5, DIFF),
                                                  "Right wall"));
     // Left wall
-    objects.emplace_back(std::make_unique<Plane>(Vec3(-1, 0, 0), Vec3(-5, 0, 0),
+    objects.emplace_back(std::make_unique<Plane>(Vec3(1, 0, 0), Vec3(-5, 0, 0),
                                                  Material(Vec3(0, 0, 0), Vec3(0, 0, 1) * .5, DIFF),
                                                  "Left wall"));
     // Floor
     objects.emplace_back(std::make_unique<Plane>(
-        Vec3(0, 1, 0), Vec3(0, 0, 0), Material(Vec3(0, 0, 0), Vec3(0, 1, 0) * .5, DIFF), "Floor"));
+        Vec3(0, 1, 0), Vec3(0, 0, 0), Material(Vec3(0, 0, 0), Vec3(1, 1, 1) * .5, DIFF), "Floor"));
     // Ceiling
     objects.emplace_back(std::make_unique<Plane>(Vec3(0, -1, 0), Vec3(0, 3, 0),
-                                                 Material(Vec3(0, 0, 0), Vec3(1, 1, 1) * .4, DIFF),
+                                                 Material(Vec3(0, 0, 0), Vec3(1, 1, 1) * .9, DIFF),
                                                  "Ceiling"));
     // Front wall
-    objects.emplace_back(std::make_unique<Plane>(Vec3(0, 0, -1), Vec3(0, 0, -5),
+    objects.emplace_back(std::make_unique<Plane>(Vec3(0, 0, 1), Vec3(0, 0, -5),
                                                  Material(Vec3(0, 0, 0), Vec3(1, 0, 1) * .4, DIFF),
                                                  "Front wall"));
     // Back wall
