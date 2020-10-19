@@ -29,6 +29,7 @@ struct AppContext {
   size_t frame = 0;
   float dtime  = 0.f;
   std::unique_ptr<Scene3D> scene3d;
+  bool enablePT = false;
 };
 
 // struct Vec {
