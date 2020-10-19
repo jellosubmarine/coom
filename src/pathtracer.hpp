@@ -4,6 +4,7 @@
 #include <Eigen/Dense>
 #pragma warning(pop)
 #include "optick.h"
+#include <iostream>
 #include <memory>
 #include <ostream>
 #include <random>
@@ -22,6 +23,8 @@
 #define BACK_WALL 6
 #define LEFT_WALL -5
 #define RIGHT_WALL 5
+// hardcoded camera physical size (collision sphere radius)
+#define CAMERA_SIZE 0.3
 
 using Vec3 = Eigen::Vector3d;
 
@@ -129,7 +132,18 @@ struct Camera {
 
     return Ray(t.translation(), d);
   }
-  void moveLinear(Vec3 deltaPos) { t = t.translate(deltaPos); }
+  void moveLinear(Vec3 deltaPos) {
+    // hardcoded rectangular room
+    t.translate(deltaPos);
+    // if (t.translation().x() > (RIGHT_WALL - CAMERA_SIZE) ||
+    //     t.translation().x() < (LEFT_WALL + CAMERA_SIZE)) {
+    //   t.translate(-1 * deltaPos.x() * Vec3::UnitX());
+    // }
+    // if (t.translation().z() > (BACK_WALL - CAMERA_SIZE) ||
+    //     t.translation().z() < (FRONT_WALL + CAMERA_SIZE)) {
+    //   t.translate(-1 * deltaPos.z() * Vec3::UnitZ());
+    // }
+  }
 
   void turn(double angle) {
     Eigen::AngleAxis<double> aa(angle, Vec3::UnitY());
