@@ -17,6 +17,12 @@
 #define AA_SAMPLES_PER_PIXEL 1
 #define DEPTH_LIMIT 4
 
+// hardcoded rectangle room
+#define FRONT_WALL -5
+#define BACK_WALL 6
+#define LEFT_WALL -5
+#define RIGHT_WALL 5
+
 using Vec3 = Eigen::Vector3d;
 
 inline double random_double() {
@@ -255,11 +261,11 @@ struct Scene3D {
     objects.emplace_back(std::make_unique<Sphere>(
         0.5, Vec3(0, 0.5, 4), Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .999, DIFF), "Red sphere"));
     // Right wall
-    objects.emplace_back(std::make_unique<Plane>(Vec3(-1, 0, 0), Vec3(5, 0, 0),
+    objects.emplace_back(std::make_unique<Plane>(Vec3(-1, 0, 0), Vec3(RIGHT_WALL, 0, 0),
                                                  Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .5, DIFF),
                                                  "Right wall"));
     // Left wall
-    objects.emplace_back(std::make_unique<Plane>(Vec3(1, 0, 0), Vec3(-5, 0, 0),
+    objects.emplace_back(std::make_unique<Plane>(Vec3(1, 0, 0), Vec3(LEFT_WALL, 0, 0),
                                                  Material(Vec3(0, 0, 0), Vec3(0, 0, 1) * .5, DIFF),
                                                  "Left wall"));
     // Floor
@@ -270,11 +276,11 @@ struct Scene3D {
                                                  Material(Vec3(0, 0, 0), Vec3(1, 1, 1) * .9, DIFF),
                                                  "Ceiling"));
     // Front wall
-    objects.emplace_back(std::make_unique<Plane>(Vec3(0, 0, 1), Vec3(0, 0, -5),
+    objects.emplace_back(std::make_unique<Plane>(Vec3(0, 0, 1), Vec3(0, 0, FRONT_WALL),
                                                  Material(Vec3(0, 0, 0), Vec3(1, 0, 1) * .4, DIFF),
                                                  "Front wall"));
     // Back wall
-    objects.emplace_back(std::make_unique<Plane>(Vec3(0, 0, -1), Vec3(0, 0, 6),
+    objects.emplace_back(std::make_unique<Plane>(Vec3(0, 0, -1), Vec3(0, 0, BACK_WALL),
                                                  Material(Vec3(0, 0, 0), Vec3(1, 0, 1) * .4, DIFF),
                                                  "Back wall"));
     spdlog::info("Scene created with {} elements", objects.size());
