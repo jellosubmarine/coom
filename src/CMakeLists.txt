@@ -1,6 +1,7 @@
 add_executable(sfml_cuda
     main.cpp
     options.cpp
+    event_handler.cpp
     scenes/full_screen_opengl.cpp
     # scenes/full_screen_opengl.cu
 )
