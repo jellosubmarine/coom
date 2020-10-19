@@ -87,68 +87,128 @@ void handleEvents(sf::RenderWindow &window) {
     if (event.type == sf::Event::Closed) {
       window.close();
     }
+  }
 
-    if (event.key.code == sf::Keyboard::Escape) {
-      if (event.type == sf::Event::KeyPressed) {
-        window.close();
-      }
-    }
-    // if (event.key.code == sf::Keyboard::PageUp) {
-    //   spdlog::info("Select next");
-    // }
-    // if (event.key.code == sf::Keyboard::PageDown) {
-    //   spdlog::info("Select previous");
-    // }
+  if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape)) {
+    // left key is pressed: move our character
+    window.close();
+  }
 
-    if (event.key.code == sf::Keyboard::Up) {
-      if (event.type == sf::Event::KeyPressed) {
-        // spdlog::info("Move forward");
-        forward = 1;
-      } else {
-        forward = 0;
-      }
-    }
-    if (event.key.code == sf::Keyboard::Down) {
-      if (event.type == sf::Event::KeyPressed) {
-        // spdlog::info("Move backward");
-        forward = -1;
-      } else {
-        forward = 0;
-      }
-    }
-    if (event.key.code == sf::Keyboard::Left) {
-      if (event.type == sf::Event::KeyPressed) {
-        if (event.key.shift) {
-          // spdlog::info("Strafe left");
-          sideways = -1;
+  if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up)) {
+    // left key is pressed: move our character
+    forward = 1;
+  }
 
-        } else {
-          // spdlog::info("Turn left");
-          turning = -1;
-        }
-      } else {
-        turning  = 0;
-        sideways = 0;
-      }
-    }
-    if (event.key.code == sf::Keyboard::Right) {
-      if (event.type == sf::Event::KeyPressed) {
-        if (event.key.shift) {
-          // spdlog::info("Strafe right");
-          sideways = 1;
-        } else {
-          // spdlog::info("Turn right");
-          turning = 1;
-        }
-      } else {
-        turning  = 0;
-        sideways = 0;
-      }
-    }
-    if (event.key.code == sf::Keyboard::F) {
-      // spdlog::info("Fire");
+  if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down)) {
+    // left key is pressed: move our character
+    forward = -1;
+  }
+
+  if ((!sf::Keyboard::isKeyPressed(sf::Keyboard::Up) &&
+       !sf::Keyboard::isKeyPressed(sf::Keyboard::Down)) ||
+      (sf::Keyboard::isKeyPressed(sf::Keyboard::Up) &&
+       sf::Keyboard::isKeyPressed(sf::Keyboard::Down))) {
+    forward = 0;
+  }
+
+  if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left)) {
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift)) {
+      sideways = -1;
+      turning  = 0;
+    } else {
+      turning  = -1;
+      sideways = 0;
     }
   }
+
+  if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right)) {
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift)) {
+      sideways = 1;
+      turning  = 0;
+    } else {
+      turning  = 1;
+      sideways = 0;
+    }
+  }
+
+  if ((!sf::Keyboard::isKeyPressed(sf::Keyboard::Left) &&
+       !sf::Keyboard::isKeyPressed(sf::Keyboard::Right)) ||
+      (sf::Keyboard::isKeyPressed(sf::Keyboard::Left) &&
+       sf::Keyboard::isKeyPressed(sf::Keyboard::Right))) {
+    turning  = 0;
+    sideways = 0;
+  }
+
+  // OLD EVENT HANDLING
+
+  // while (window.pollEvent(event)) {
+  //   ImGui::SFML::ProcessEvent(event);
+
+  //   if (event.type == sf::Event::Closed) {
+  //     window.close();
+  //   }
+
+  //   if (event.key.code == sf::Keyboard::Escape) {
+  //     if (event.type == sf::Event::KeyPressed) {
+  //       window.close();
+  //     }
+  //   }
+  //   // if (event.key.code == sf::Keyboard::PageUp) {
+  //   //   spdlog::info("Select next");
+  //   // }
+  //   // if (event.key.code == sf::Keyboard::PageDown) {
+  //   //   spdlog::info("Select previous");
+  //   // }
+
+  //   if (event.key.code == sf::Keyboard::Up) {
+  //     if (event.type == sf::Event::KeyPressed) {
+  //       // spdlog::info("Move forward");
+  //       forward = 1;
+  //     } else {
+  //       forward = 0;
+  //     }
+  //   }
+  //   if (event.key.code == sf::Keyboard::Down) {
+  //     if (event.type == sf::Event::KeyPressed) {
+  //       // spdlog::info("Move backward");
+  //       forward = -1;
+  //     } else {
+  //       forward = 0;
+  //     }
+  //   }
+  //   if (event.key.code == sf::Keyboard::Left) {
+  //     if (event.type == sf::Event::KeyPressed) {
+  //       if (event.key.shift) {
+  //         // spdlog::info("Strafe left");
+  //         sideways = -1;
+
+  //       } else {
+  //         // spdlog::info("Turn left");
+  //         turning = -1;
+  //       }
+  //     } else {
+  //       turning  = 0;
+  //       sideways = 0;
+  //     }
+  //   }
+  //   if (event.key.code == sf::Keyboard::Right) {
+  //     if (event.type == sf::Event::KeyPressed) {
+  //       if (event.key.shift) {
+  //         // spdlog::info("Strafe right");
+  //         sideways = 1;
+  //       } else {
+  //         // spdlog::info("Turn right");
+  //         turning = 1;
+  //       }
+  //     } else {
+  //       turning  = 0;
+  //       sideways = 0;
+  //     }
+  //   }
+  //   if (event.key.code == sf::Keyboard::F) {
+  //     // spdlog::info("Fire");
+  //   }
+  // }
 }
 
 void handleMovement(AppContext &ctx) {
