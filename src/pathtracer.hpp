@@ -140,11 +140,11 @@ struct Plane : public SceneObject {
   }
 };
 
-struct Projectile : public Sphere {
-  Projectile() : Sphere() { type = PROJECTILE; }
-  // direction, speed
-  // update function
-};
+// struct Projectile : public Sphere {
+//   Projectile() : Sphere() { type = PROJECTILE; }
+//   // direction, speed
+//   // update function
+// };
 
 struct Scene3D {
   std::vector<std::unique_ptr<SceneObject>> objects;
