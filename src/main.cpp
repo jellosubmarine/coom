@@ -14,8 +14,6 @@
 
 #include "optick.h"
 
-void handleEvents(sf::RenderWindow &window);
-void handleMovement(AppContext &ctx);
 void createGUI();
 
 int main(int argc, const char **argv) {
@@ -32,7 +30,7 @@ int main(int argc, const char **argv) {
   // window.setFramerateLimit(60);
   ImGui::SFML::Init(window);
   spdlog::info("SFML window created");
-
+  window.setKeyRepeatEnabled(false);
   FullScreenOpenGLScene scene(window);
 
   AppContext ctx;
@@ -62,8 +60,9 @@ int main(int argc, const char **argv) {
     ImGui::SFML::Render(window);
     window.display();
 
-    event_handler.handleEvents(window);
-    event_handler.handleMovement(ctx);
+    event_handler.handleKeyboardEvents(window);
+    event_handler.handleMovement();
+    event_handler.characterMovement(ctx);
     ctx.frame++;
     ctx.dtime = deltaClock.getElapsedTime().asSeconds();
   }
