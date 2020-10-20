@@ -30,7 +30,8 @@ int main(int argc, const char **argv) {
   // window.setFramerateLimit(60);
   ImGui::SFML::Init(window);
   spdlog::info("SFML window created");
-  window.setKeyRepeatEnabled(false);
+  window.setKeyRepeatEnabled(false); // Avoid event spamming
+  window.setJoystickThreshold(1.0f); // joystick resolution , range -100 - 100
   FullScreenOpenGLScene scene(window);
 
   AppContext ctx;
@@ -60,9 +61,8 @@ int main(int argc, const char **argv) {
     ImGui::SFML::Render(window);
     window.display();
 
-    event_handler.handleKeyboardEvents(window);
-    event_handler.handleMovement();
-    event_handler.characterMovement(ctx);
+    event_handler.handleEvents(window);
+    event_handler.handleMovement(ctx);
     ctx.frame++;
     ctx.dtime = deltaClock.getElapsedTime().asSeconds();
   }
