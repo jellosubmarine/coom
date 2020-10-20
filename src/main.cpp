@@ -72,8 +72,3 @@ int main(int argc, const char **argv) {
 
   return 0;
 }
-
-int forward = 0;
-// 1 is right, -1 is left
-int sideways = 0;
-int turning  = 0;
