@@ -1,5 +1,6 @@
 #include "common.h"
 
+#include <SFML/Audio.hpp>
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/System/Clock.hpp>
 #include <SFML/Window/Event.hpp>
@@ -36,9 +37,16 @@ int main(int argc, const char **argv) {
 
   AppContext ctx;
   sf::Clock deltaClock;
+  sf::Music music;
 
   ctx.scene3d = std::make_unique<Scene3D>(
       Camera(1.4, Vec3(0, 1.5, 5), 0, window.getSize().x, window.getSize().y));
+
+  if (!music.openFromFile("soundtrack.wav"))
+    return -1;
+  music.setLoop(true);
+  music.play();
+  float musicVolume = 5.f;
 
   EventHandler event_handler;
 
@@ -54,7 +62,10 @@ int main(int argc, const char **argv) {
     ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
     ImGui::Text("Frame %d", ctx.frame);
     ImGui::Checkbox("Enable PT", &ctx.enablePT);
+    ImGui::SliderFloat("Music volume", &musicVolume, 0.0f, 100.0f);
     ImGui::End();
+
+    music.setVolume(musicVolume);
 
     window.clear();
     scene.render(window);
