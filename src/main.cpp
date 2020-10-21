@@ -63,6 +63,7 @@ int main(int argc, const char **argv) {
 
     event_handler.handleEvents(window);
     event_handler.handleMovement(ctx);
+
     ctx.frame++;
     ctx.dtime = deltaClock.getElapsedTime().asSeconds();
   }

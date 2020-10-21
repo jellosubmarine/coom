@@ -2,6 +2,7 @@
 
 #include "common.h"
 
+#include <SFML/System/Err.hpp>
 #include <SFML/Window/Event.hpp>
 #include <imgui-SFML.h>
 #include <imgui.h>
@@ -29,6 +30,13 @@ struct Joystick {
   float axis_z{};
 
   bool isConnected = sf::Joystick::isConnected(0);
+
+  void reset() {
+    axis_x      = 0;
+    axis_y      = 0;
+    axis_z      = 0;
+    isConnected = sf::Joystick::isConnected(0);
+  }
 };
 
 struct ToggleKeyboardKeys {
@@ -48,12 +56,17 @@ private:
   float joy_turn{};
   float joy_strafe{};
 
+  int joy_dc{};
+  bool dc_flag{};
+
+  std::streambuf *orig = sf::err().rdbuf();
+
   ToggleKeyboardKeys keys;
-  Joystick joystick;
 
   const unsigned int deadzone = 20; // percentage
 
 public:
+  Joystick joystick;
   void handleKeyboardEvent(sf::RenderWindow &window, sf::Event &event);
   void handleJoystickEvent(sf::RenderWindow &window, sf::Event &event);
   void handleKeyboardMovement();

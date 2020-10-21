@@ -53,8 +53,14 @@ void EventHandler::handleJoystickEvent(sf::RenderWindow &window, sf::Event &even
   }
 
   if (event.type == sf::Event::JoystickDisconnected) {
-    joystick.isConnected = false;
+    joystick.reset();
+    joy_forward = 0;
+    joy_strafe  = 0;
+    joy_turn    = 0;
     spdlog::info("Joystick disconnected: {}", event.joystickConnect.joystickId);
+    joy_dc  = 100;
+    dc_flag = 1;
+    sf::err().rdbuf(NULL);
   }
 
   if (!joystick.isConnected)
@@ -117,7 +123,7 @@ void EventHandler::handleKeyboardMovement() {
   if (keys.left) {
     if (keys.shift) {
       key_strafe = -1;
-      key_turn   = -1;
+      key_turn   = 0;
     } else {
       key_turn   = -1;
       key_strafe = 0;
@@ -127,7 +133,7 @@ void EventHandler::handleKeyboardMovement() {
   if (keys.right) {
     if (keys.shift) {
       key_strafe = 1;
-      key_turn   = 1;
+      key_turn   = 0;
     } else {
       key_turn   = 1;
       key_strafe = 0;
@@ -165,8 +171,16 @@ void EventHandler::handleEvents(sf::RenderWindow &window) {
     if (event.type == sf::Event::Closed) {
       window.close();
     }
+
     handleKeyboardEvent(window, event);
     handleJoystickEvent(window, event);
+  }
+
+  if (joy_dc > 0) {
+    joy_dc--;
+  } else if (joy_dc == 0 && dc_flag) {
+    sf::err().rdbuf(orig);
+    dc_flag = 0;
   }
 }
 
