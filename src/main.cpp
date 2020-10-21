@@ -49,7 +49,7 @@ int main(int argc, const char **argv) {
     return -1;
   music.setLoop(true);
   music.play();
-  float musicVolume = 50.f;
+  float musicVolume = 5.f;
 
   while (window.isOpen()) {
 
