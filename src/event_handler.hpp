@@ -9,6 +9,7 @@
 
 #define LIN_SPEED 2
 #define TURN_SPEED 1
+#define SHOT_TIMEOUT 1.0
 
 struct Button {
   bool state;
@@ -47,6 +48,11 @@ struct ToggleKeyboardKeys {
   bool shift{};
 };
 
+struct Shooting {
+  bool shotHappened = false;
+  float timeout     = SHOT_TIMEOUT;
+};
+
 class EventHandler {
 private:
   float key_forward{};
@@ -62,7 +68,7 @@ private:
   std::streambuf *orig = sf::err().rdbuf();
 
   ToggleKeyboardKeys keys;
-
+  Shooting shooting;
   const unsigned int deadzone = 20; // percentage
 
 public:
@@ -75,4 +81,5 @@ public:
   void handleEvents(sf::RenderWindow &window);
   void handleMovement(AppContext &ctx);
   void addDeadzone();
+  void handleShooting(AppContext &ctx);
 };

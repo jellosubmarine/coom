@@ -154,7 +154,8 @@ struct SceneObject {
   }
   virtual Vec3 getNormal([[maybe_unused]] Vec3 phit) = 0;
   virtual Hit intersect(const Ray &r) const          = 0;
-  virtual ~SceneObject(){};
+  virtual void update(float dt) {}
+  virtual ~SceneObject() {}
 };
 
 struct Sphere : public SceneObject {
@@ -210,11 +211,18 @@ struct Plane : public SceneObject {
   }
 };
 
-// struct Projectile : public Sphere {
-//   Projectile() : Sphere() { type = PROJECTILE; }
-//   // direction, speed
-//   // update function
-// };
+struct Projectile : public Sphere {
+  Vec3 direction;
+  const int speed = 2;
+  // int bounces = 3;
+  Projectile(Vec3 position, Vec3 direction)
+      : Sphere(0.1, position, Material(Vec3(0.5, 0.5, 0), Vec3(1, 1, 0) * .8, DIFF), "Bullet"),
+        direction(direction) {
+    type = PROJECTILE;
+    direction.normalize();
+  }
+  void update(float dtime) override { pos += direction * speed * dtime; }
+};
 
 struct Scene3D {
   std::vector<std::unique_ptr<SceneObject>> objects;
@@ -247,6 +255,14 @@ struct Scene3D {
     }
     auto response = objects.at(h.id)->mat.bsdf(h);
     return result + radiance(response.ray, depth).cwiseProduct(response.transmittance);
+  }
+
+  void update(float dt) {
+    for (auto &obj : objects) {
+      if (obj->type == PROJECTILE) {
+        obj->update(dt);
+      }
+    }
   }
 
   void generateScene() {

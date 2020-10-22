@@ -58,6 +58,7 @@ int main(int argc, const char **argv) {
 
     scene.update(ctx);
 
+    // GUI
     ImGui::Begin("FPS");
     ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
     ImGui::Text("Frame %d", ctx.frame);
@@ -66,14 +67,19 @@ int main(int argc, const char **argv) {
     ImGui::End();
 
     music.setVolume(musicVolume);
+    // END GUI
+
+    event_handler.handleEvents(window);
+    event_handler.handleMovement(ctx);
+
+    // Update movements
+    ctx.scene3d->update(ctx.dtime);
+    // END update movements
 
     window.clear();
     scene.render(window);
     ImGui::SFML::Render(window);
     window.display();
-
-    event_handler.handleEvents(window);
-    event_handler.handleMovement(ctx);
 
     ctx.frame++;
     ctx.dtime = deltaClock.getElapsedTime().asSeconds();
