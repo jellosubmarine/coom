@@ -87,6 +87,7 @@ void FullScreenOpenGLScene::update(AppContext &ctx) {
 }
 
 void FullScreenOpenGLScene::render(sf::RenderWindow &window) {
+
   window.pushGLStates();
 
   glClearColor(0.2f, 0.0f, 0.0f, 0.0f);
@@ -107,7 +108,18 @@ void FullScreenOpenGLScene::render(sf::RenderWindow &window) {
 
   glDrawArrays(GL_POINTS, 0, width * height);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
-
+  // Crosshair
+  sf::Vertex line[2];
+  line[0].position = sf::Vector2f(width / 2.0 - 7, height / 2.0);
+  line[0].color    = sf::Color::Red;
+  line[1].position = sf::Vector2f(width / 2.0 + 7, height / 2.0);
+  line[1].color    = sf::Color::Red;
+  window.draw(line, 2, sf::Lines);
+  line[0].position = sf::Vector2f(width / 2.0, height / 2.0 + 7);
+  line[0].color    = sf::Color::Red;
+  line[1].position = sf::Vector2f(width / 2.0, height / 2.0 - 7);
+  line[1].color    = sf::Color::Red;
+  window.draw(line, 2, sf::Lines);
   window.popGLStates();
 }
 

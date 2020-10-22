@@ -4,6 +4,7 @@
 #include <Eigen/Dense>
 #pragma warning(pop)
 #include "optick.h"
+#include <iostream>
 #include <memory>
 #include <ostream>
 #include <random>
@@ -16,6 +17,14 @@
 #define SAMPLES_PER_PIXEL 10
 #define AA_SAMPLES_PER_PIXEL 1
 #define DEPTH_LIMIT 4
+
+// hardcoded rectangle room
+#define FRONT_WALL -5
+#define BACK_WALL 6
+#define LEFT_WALL -5
+#define RIGHT_WALL 5
+// hardcoded camera physical size (collision sphere radius)
+#define CAMERA_SIZE 0.3
 
 using Vec3 = Eigen::Vector3d;
 
@@ -112,10 +121,13 @@ struct Camera {
   Eigen::Transform<double, 3, Eigen::Affine> t;
 
   Camera(double fov, Vec3 position, double angle, double height, double width)
-      : fov(fov), h(height), w(width), t(Eigen::Affine3d::Identity()) {
-    t.Identity();
+      : fov(fov), h(height), w(width) {
+    t.setIdentity();
     t.translate(position);
     t.rotate(Eigen::AngleAxis<double>(angle, Vec3::UnitY()));
+    // t.block<3, 1>(0, 3) = position;
+    // auto aa             = Eigen::AngleAxis<double>(angle, Vec3::UnitY());
+    // t.block<3, 3>(0, 0) = aa.matrix();
   }
   Ray castRay(double x, double y) {
     Vec3 d(w * fov / h * (x / w - 0.5), (y / h - 0.5) * fov, -1);
@@ -123,11 +135,11 @@ struct Camera {
 
     return Ray(t.translation(), d);
   }
-  void moveLinear(Vec3 deltaPos) { t = t.translate(deltaPos); }
+  void moveLinear(Vec3 deltaPos) { t.translate(deltaPos); }
 
   void turn(double angle) {
     Eigen::AngleAxis<double> aa(angle, Vec3::UnitY());
-    t = t * aa;
+    t = t.rotate(aa);
   }
 };
 
@@ -142,7 +154,8 @@ struct SceneObject {
   }
   virtual Vec3 getNormal([[maybe_unused]] Vec3 phit) = 0;
   virtual Hit intersect(const Ray &r) const          = 0;
-  virtual ~SceneObject(){};
+  virtual void update(float dt) {}
+  virtual ~SceneObject() {}
 };
 
 struct Sphere : public SceneObject {
@@ -198,11 +211,18 @@ struct Plane : public SceneObject {
   }
 };
 
-// struct Projectile : public Sphere {
-//   Projectile() : Sphere() { type = PROJECTILE; }
-//   // direction, speed
-//   // update function
-// };
+struct Projectile : public Sphere {
+  Vec3 direction;
+  const int speed = 2;
+  // int bounces = 3;
+  Projectile(Vec3 position, Vec3 direction)
+      : Sphere(0.1, position, Material(Vec3(0.5, 0.5, 0), Vec3(1, 1, 0) * .8, DIFF), "Bullet"),
+        direction(direction) {
+    type = PROJECTILE;
+    direction.normalize();
+  }
+  void update(float dtime) override { pos += direction * speed * dtime; }
+};
 
 struct Scene3D {
   std::vector<std::unique_ptr<SceneObject>> objects;
@@ -237,6 +257,14 @@ struct Scene3D {
     return result + radiance(response.ray, depth).cwiseProduct(response.transmittance);
   }
 
+  void update(float dt) {
+    for (auto &obj : objects) {
+      if (obj->type == PROJECTILE) {
+        obj->update(dt);
+      }
+    }
+  }
+
   void generateScene() {
     objects.clear();
     objects.emplace_back(std::make_unique<Sphere>(
@@ -255,11 +283,11 @@ struct Scene3D {
     objects.emplace_back(std::make_unique<Sphere>(
         0.5, Vec3(0, 0.5, 4), Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .999, DIFF), "Red sphere"));
     // Right wall
-    objects.emplace_back(std::make_unique<Plane>(Vec3(-1, 0, 0), Vec3(5, 0, 0),
+    objects.emplace_back(std::make_unique<Plane>(Vec3(-1, 0, 0), Vec3(RIGHT_WALL, 0, 0),
                                                  Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .5, DIFF),
                                                  "Right wall"));
     // Left wall
-    objects.emplace_back(std::make_unique<Plane>(Vec3(1, 0, 0), Vec3(-5, 0, 0),
+    objects.emplace_back(std::make_unique<Plane>(Vec3(1, 0, 0), Vec3(LEFT_WALL, 0, 0),
                                                  Material(Vec3(0, 0, 0), Vec3(0, 0, 1) * .5, DIFF),
                                                  "Left wall"));
     // Floor
@@ -270,11 +298,11 @@ struct Scene3D {
                                                  Material(Vec3(0, 0, 0), Vec3(1, 1, 1) * .9, DIFF),
                                                  "Ceiling"));
     // Front wall
-    objects.emplace_back(std::make_unique<Plane>(Vec3(0, 0, 1), Vec3(0, 0, -5),
+    objects.emplace_back(std::make_unique<Plane>(Vec3(0, 0, 1), Vec3(0, 0, FRONT_WALL),
                                                  Material(Vec3(0, 0, 0), Vec3(1, 0, 1) * .4, DIFF),
                                                  "Front wall"));
     // Back wall
-    objects.emplace_back(std::make_unique<Plane>(Vec3(0, 0, -1), Vec3(0, 0, 6),
+    objects.emplace_back(std::make_unique<Plane>(Vec3(0, 0, -1), Vec3(0, 0, BACK_WALL),
                                                  Material(Vec3(0, 0, 0), Vec3(1, 0, 1) * .4, DIFF),
                                                  "Back wall"));
     spdlog::info("Scene created with {} elements", objects.size());

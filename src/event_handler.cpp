@@ -43,6 +43,12 @@ void EventHandler::handleKeyboardEvent(sf::RenderWindow &window, sf::Event &even
       keys.shift = 0;
     }
   }
+
+  if (event.key.code == sf::Keyboard::F) {
+    if (event.type == sf::Event::KeyPressed) {
+      shooting.shotHappened = 1;
+    }
+  }
 }
 //   spdlog::info("right {} left {} up {} down {}", keys.right, keys.left, keys.up, keys.down);
 
@@ -188,4 +194,17 @@ void EventHandler::handleMovement(AppContext &ctx) {
   handleKeyboardMovement();
   handleJoystickMovement();
   characterMovement(ctx);
+  handleShooting(ctx);
+}
+
+void EventHandler::handleShooting(AppContext &ctx) {
+  shooting.timeout += ctx.dtime;
+  if (shooting.shotHappened) {
+    shooting.shotHappened = false;
+    if (shooting.timeout > SHOT_TIMEOUT) {
+      shooting.timeout = 0;
+      ctx.scene3d->objects.emplace_back(std::make_unique<Projectile>(
+          ctx.scene3d->cam.t.translation(), ctx.scene3d->cam.t.linear() * Vec3(0, 0, -1)));
+    }
+  }
 }
