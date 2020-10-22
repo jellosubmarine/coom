@@ -118,7 +118,7 @@ struct Camera {
   double fov;
   double h;
   double w;
-  Eigen::Transform<double, 4, Eigen::Affine> t;
+  Eigen::Transform<double, 3, Eigen::Affine> t;
 
   Camera(double fov, Vec3 position, double angle, double height, double width)
       : fov(fov), h(height), w(width) {
@@ -135,28 +135,7 @@ struct Camera {
 
     return Ray(t.translation(), d);
   }
-  void moveLinear(Vec3 deltaPos) {
-    // hardcoded rectangular room
-
-    Eigen::Transform<double, 4, Eigen::Affine> tmp = t;
-    tmp.translate(deltaPos);
-    std::cout << "Before: " << tmp.translation().transpose() << "\n";
-
-    if (t.translation().x() > (RIGHT_WALL - CAMERA_SIZE) ||
-        t.translation().x() < (LEFT_WALL + CAMERA_SIZE)) {
-      // t.translate(-1 * deltaPos.x() * Vec3::UnitX());
-      // t.translation.z() = 0;
-      return;
-    }
-    if (t.translation().z() > (BACK_WALL - CAMERA_SIZE) ||
-        t.translation().z() < (FRONT_WALL + CAMERA_SIZE)) {
-      // t.translate(-1 * deltaPos.z() * Vec3::UnitZ());
-      // t.translation.z() = 0;
-      return;
-    }
-    t.translate(deltaPos);
-    std::cout << "After: " << t.translation().transpose() << "\n";
-  }
+  void moveLinear(Vec3 deltaPos) { t.translate(deltaPos); }
 
   void turn(double angle) {
     Eigen::AngleAxis<double> aa(angle, Vec3::UnitY());
