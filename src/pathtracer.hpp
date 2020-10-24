@@ -125,16 +125,15 @@ struct Camera {
     t.setIdentity();
     t.translate(position);
     t.rotate(Eigen::AngleAxis<double>(angle, Vec3::UnitY()));
-    // t.block<3, 1>(0, 3) = position;
-    // auto aa             = Eigen::AngleAxis<double>(angle, Vec3::UnitY());
-    // t.block<3, 3>(0, 0) = aa.matrix();
   }
+
   Ray castRay(double x, double y) {
     Vec3 d(w * fov / h * (x / w - 0.5), (y / h - 0.5) * fov, -1);
     d = t.linear() * d.normalized();
 
     return Ray(t.translation(), d);
   }
+
   void moveLinear(Vec3 deltaPos) { t.translate(deltaPos); }
 
   void turn(double angle) {
@@ -149,13 +148,14 @@ struct SceneObject {
   Material mat;
   Obj_t type;
   std::string name = "";
+  bool destroyed   = false; // If object should be destroyed now
   SceneObject(Vec3 pos, Material mat, std::string name) : pos(pos), mat(mat), name(name) {
     spdlog::info("{} created", name);
   }
   virtual Vec3 getNormal([[maybe_unused]] Vec3 phit) = 0;
   virtual Hit intersect(const Ray &r) const          = 0;
   virtual void update(float dt) {}
-  virtual ~SceneObject() {}
+  virtual ~SceneObject() { spdlog::info("{} destroyed", name); }
 };
 
 struct Sphere : public SceneObject {
@@ -213,15 +213,29 @@ struct Plane : public SceneObject {
 
 struct Projectile : public Sphere {
   Vec3 direction;
-  const int speed = 2;
-  // int bounces = 3;
+  const int speed      = 2;
+  const int bulletSize = 1;
+  int bouncesLeft      = 3;
+
   Projectile(Vec3 position, Vec3 direction)
-      : Sphere(0.1, position, Material(Vec3(0.5, 0.5, 0), Vec3(1, 1, 0) * .8, DIFF), "Bullet"),
+      : Sphere(bulletSize, position, Material(Vec3(0.5, 0.5, 0), Vec3(1, 1, 0) * .8, DIFF),
+               "Bullet"),
         direction(direction) {
     type = PROJECTILE;
     direction.normalize();
+    spdlog::info("Position {} {} {} Direction {} {} {}", pos.x(), pos.y(), pos.z(), direction.x(),
+                 direction.y(), direction.z());
+    // pos += direction;
   }
-  void update(float dtime) override { pos += direction * speed * dtime; }
+
+  void update(float dtime) override {
+    pos += direction * speed * dtime;
+    spdlog::info("Position {} {} {} Direction {} {} {}", pos.x(), pos.y(), pos.z(), direction.x(),
+                 direction.y(), direction.z());
+    // if ((pos.x() - bulletSize) < LEFT_WALL || (pos.x() + bulletSize) > RIGHT_WALL) {
+    //   destroyed = true;
+    // }
+  }
 };
 
 struct Scene3D {
@@ -263,6 +277,9 @@ struct Scene3D {
         obj->update(dt);
       }
     }
+    objects.erase(
+        std::remove_if(objects.begin(), objects.end(), [](auto &obj) { return obj->destroyed; }),
+        objects.end());
   }
 
   void generateScene() {
