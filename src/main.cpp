@@ -28,7 +28,7 @@ int main(int argc, const char **argv) {
 
   sf::RenderWindow window(sf::VideoMode(opt.width, opt.height), "Coom",
                           sf::Style::Titlebar | sf::Style::Close);
-  window.setFramerateLimit(60);
+  // window.setFramerateLimit(60);
   ImGui::SFML::Init(window);
   spdlog::info("SFML window created");
   window.setKeyRepeatEnabled(false); // Avoid event spamming
