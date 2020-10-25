@@ -152,8 +152,7 @@ struct SceneObject {
   SceneObject(Vec3 pos, Material mat, std::string name) : pos(pos), mat(mat), name(name) {
     spdlog::info("{} created", name);
   }
-  virtual Vec3 getNormal([[maybe_unused]] Vec3 phit) = 0;
-  virtual Hit intersect(const Ray &r) const          = 0;
+  virtual Hit intersect(const Ray &r) const = 0;
   virtual void update(float dt) {}
   virtual ~SceneObject() { spdlog::info("{} destroyed", name); }
 };
@@ -165,7 +164,6 @@ struct Sphere : public SceneObject {
       : SceneObject(pos, mat, name), rad(rad) {
     type = SPHERE;
   }
-  Vec3 getNormal(Vec3 phit) { return phit; }
 
   Hit intersect(const Ray &r) const {
     Vec3 e_  = pos - r.o;
@@ -181,8 +179,9 @@ struct Sphere : public SceneObject {
     if (t < 0) {
       return Hit();
     }
-    Vec3 phit = r.o + r.d * t;
-    return Hit(phit, Vec3(), t);
+    Vec3 phit    = r.o + r.d * t;
+    Vec3 hNormal = (phit - pos).normalized();
+    return Hit(phit, hNormal, t);
   }
 };
 
@@ -193,7 +192,6 @@ struct Plane : public SceneObject {
     type = PLANE;
     normal.normalize();
   }
-  Vec3 getNormal([[maybe_unused]] Vec3 phit) { return normal; }
 
   Hit intersect(const Ray &r) const {
     double eps = 1e-4;
