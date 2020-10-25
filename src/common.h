@@ -34,6 +34,8 @@ struct AppContext {
 
 using Vec3 = Eigen::Vector3d;
 
+inline double getDistance(Vec3 x, Vec3 y) { return (y - x).norm(); }
+
 template <> struct fmt::formatter<Vec3> {
   constexpr auto parse(format_parse_context &ctx) { return ctx.end(); }
   template <typename Context> auto format(const Vec3 &v, Context &ctx) {
@@ -43,26 +45,43 @@ template <> struct fmt::formatter<Vec3> {
 
 struct Projectile : public Sphere {
   Vec3 direction;
-  std::vector<Vec3> path;
+  std::vector<Ray> path;
   int pathIterator        = 0;
   const float speed       = 4;
   int bouncesLeft         = 3;
   const double bulletSize = 0.1;
   std::shared_ptr<Scene3D> scene3d;
+  Vec3 origin;
+  double targetDistance = 0;
+
   Projectile(Vec3 position, Vec3 direction, AppContext &ctx)
       : Sphere(1, position, Material(Vec3(0.5, 0.5, 0), Vec3(1, 1, 0) * .8, DIFF), "Bullet"),
         direction(direction), scene3d(ctx.scene3d) {
-    type = PROJECTILE;
+    type   = PROJECTILE;
+    origin = position;
     direction.normalize();
     rad = bulletSize;
     pos += direction * 0.2;
     createPath();
-    for (auto i : path) {
-      spdlog::info(i);
-    }
+    targetDistance = getDistance(origin, path.at(pathIterator).o);
+    // for (auto i : path) {
+    //   spdlog::info(i);
+    // }
   }
   void update(float dtime) override {
-    // pos += direction * speed * dtime;
+    pos += direction * speed * dtime;
+    if (getDistance(origin, pos) > targetDistance) {
+
+      direction = path.at(pathIterator).d;
+      pos       = path.at(pathIterator).o;
+      origin    = pos;
+      pathIterator++;
+      if (pathIterator >= bouncesLeft) {
+        pathIterator = 0;
+        destroyed    = true;
+      }
+      targetDistance = getDistance(origin, path.at(pathIterator).o);
+    }
     // if ((pos.x() - bulletSize) < LEFT_WALL || (pos.x() + bulletSize) > RIGHT_WALL) {
     //   destroyed = true;
     // }
@@ -75,7 +94,7 @@ struct Projectile : public Sphere {
     Ray dir(pos, direction);
     for (auto i = 0; i < bouncesLeft; ++i) {
       dir = getNextBounce(dir);
-      path.emplace_back(dir.o);
+      path.emplace_back(dir);
     }
   }
 
