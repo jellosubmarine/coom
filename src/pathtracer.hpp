@@ -125,16 +125,15 @@ struct Camera {
     t.setIdentity();
     t.translate(position);
     t.rotate(Eigen::AngleAxis<double>(angle, Vec3::UnitY()));
-    // t.block<3, 1>(0, 3) = position;
-    // auto aa             = Eigen::AngleAxis<double>(angle, Vec3::UnitY());
-    // t.block<3, 3>(0, 0) = aa.matrix();
   }
+
   Ray castRay(double x, double y) {
     Vec3 d(w * fov / h * (x / w - 0.5), (y / h - 0.5) * fov, -1);
     d = t.linear() * d.normalized();
 
     return Ray(t.translation(), d);
   }
+
   void moveLinear(Vec3 deltaPos) { t.translate(deltaPos); }
 
   void turn(double angle) {
@@ -149,12 +148,13 @@ struct SceneObject {
   Material mat;
   Obj_t type;
   std::string name = "";
+  bool destroyed   = false; // If object should be destroyed now
   SceneObject(Vec3 pos, Material mat, std::string name) : pos(pos), mat(mat), name(name) {
     spdlog::info("{} created", name);
   }
   virtual Hit intersect(const Ray &r) const = 0;
   virtual void update(float dt) {}
-  virtual ~SceneObject() {}
+  virtual ~SceneObject() { spdlog::info("{} destroyed", name); }
 };
 
 struct Sphere : public SceneObject {
@@ -179,6 +179,11 @@ struct Sphere : public SceneObject {
     if (t < 0) {
       return Hit();
     }
+    // Ray inside sphere
+    if (e_.dot(e_) < rad * rad) {
+      return Hit();
+    }
+
     Vec3 phit    = r.o + r.d * t;
     Vec3 hNormal = (phit - pos).normalized();
     return Hit(phit, hNormal, t);
@@ -202,24 +207,13 @@ struct Plane : public SceneObject {
       double dist = (pos - r.o).dot(normal) / r.d.dot(normal);
       if (dist < 0) {
         return Hit();
+      } else if (r.d.dot(normal) > 0) {
+        return Hit();
       } else {
         return Hit(r.o + dist * r.d, normal, dist);
       }
     }
   }
-};
-
-struct Projectile : public Sphere {
-  Vec3 direction;
-  const int speed = 2;
-  // int bounces = 3;
-  Projectile(Vec3 position, Vec3 direction)
-      : Sphere(0.1, position, Material(Vec3(0.5, 0.5, 0), Vec3(1, 1, 0) * .8, DIFF), "Bullet"),
-        direction(direction) {
-    type = PROJECTILE;
-    direction.normalize();
-  }
-  void update(float dtime) override { pos += direction * speed * dtime; }
 };
 
 struct Scene3D {
@@ -261,6 +255,9 @@ struct Scene3D {
         obj->update(dt);
       }
     }
+    objects.erase(
+        std::remove_if(objects.begin(), objects.end(), [](auto &obj) { return obj->destroyed; }),
+        objects.end());
   }
 
   void generateScene() {

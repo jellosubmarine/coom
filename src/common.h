@@ -28,32 +28,90 @@ struct Pixel {
 struct AppContext {
   size_t frame = 0;
   float dtime  = 0.f;
-  std::unique_ptr<Scene3D> scene3d;
+  std::shared_ptr<Scene3D> scene3d;
   bool enablePT = false;
 };
 
-// struct Vec {
-//   double x, y, z; // position, also color(r,g,b)
-
-//   Vec(double x_ = 0, double y_ = 0, double z_ = 0) {
-//     x = x_;
-//     y = y_;
-//     z = z_;
-//   }
-//   Vec operator+(const Vec &b) const { return Vec(x + b.x, y + b.y, z + b.z); }
-//   Vec operator-(const Vec &b) const { return Vec(x - b.x, y - b.y, z - b.z); }
-//   Vec operator*(double b) const { return Vec(x * b, y * b, z * b); }
-//   Vec mult(const Vec &b) const { return Vec(x * b.x, y * b.y, z * b.z); }
-//   Vec &norm() { return *this = *this * (1 / sqrt(x * x + y * y + z * z)); }
-//   double dot(const Vec &b) const { return x * b.x + y * b.y + z * b.z; }
-//   Vec operator%(Vec &b) { return Vec(y * b.z - z * b.y, z * b.x - x * b.z, x * b.y - y * b.x); }
-// };
-
 using Vec3 = Eigen::Vector3d;
 
-// template <> struct fmt::formatter<Vec> {
-//   constexpr auto parse(format_parse_context &ctx) { return ctx.end(); }
-//   template <typename Context> auto format(const Vec &v, Context &ctx) {
-//     return format_to(ctx.out(), "[{}, {}, {}]", v.x, v.y, v.z);
-//   }
-// };
+inline double getDistance(Vec3 x, Vec3 y) { return (y - x).norm(); }
+
+template <> struct fmt::formatter<Vec3> {
+  constexpr auto parse(format_parse_context &ctx) { return ctx.end(); }
+  template <typename Context> auto format(const Vec3 &v, Context &ctx) {
+    return format_to(ctx.out(), "[{}, {}, {}]", v.x(), v.y(), v.z());
+  }
+};
+
+struct Projectile : public Sphere {
+  Vec3 direction;
+  std::vector<Ray> path;
+  int pathIterator        = 0;
+  const float speed       = 4;
+  int bouncesLeft         = 3;
+  const double bulletSize = 0.1;
+  std::shared_ptr<Scene3D> scene3d;
+  Vec3 origin;
+  double targetDistance = 0;
+
+  Projectile(Vec3 position, Vec3 direction, AppContext &ctx)
+      : Sphere(1, position, Material(Vec3(0.5, 0.5, 0), Vec3(1, 1, 0) * .8, DIFF), "Bullet"),
+        direction(direction), scene3d(ctx.scene3d) {
+    type   = PROJECTILE;
+    origin = position;
+    direction.normalize();
+    rad = bulletSize;
+    pos += direction * 0.2;
+    createPath();
+    targetDistance = getDistance(origin, path.at(pathIterator).o);
+    // for (auto i : path) {
+    //   spdlog::info(i);
+    // }
+  }
+  void update(float dtime) override {
+    pos += direction * speed * dtime;
+    if (getDistance(origin, pos) > targetDistance) {
+
+      direction = path.at(pathIterator).d;
+      pos       = path.at(pathIterator).o;
+      origin    = pos;
+      pathIterator++;
+      if (pathIterator >= bouncesLeft) {
+        pathIterator = 0;
+        destroyed    = true;
+      }
+      targetDistance = getDistance(origin, path.at(pathIterator).o);
+    }
+    // if ((pos.x() - bulletSize) < LEFT_WALL || (pos.x() + bulletSize) > RIGHT_WALL) {
+    //   destroyed = true;
+    // }
+    // if ((pos.z() - bulletSize) < FRONT_WALL || (pos.z() + bulletSize) > BACK_WALL) {
+    //   destroyed = true;
+    // }
+  }
+
+  void createPath() {
+    Ray dir(pos, direction);
+    for (auto i = 0; i < bouncesLeft; ++i) {
+      dir = getNextBounce(dir);
+      path.emplace_back(dir);
+    }
+  }
+
+  Ray getNextBounce(const Ray &r) {
+    Hit h;
+    for (auto i = 0; i < scene3d->objects.size(); ++i) {
+      Hit d = scene3d->objects.at(i)->intersect(r);
+      if (d < h) {
+        h    = d;
+        h.id = i;
+      }
+    }
+    // Hopefully normal is a unit vector
+    double hDist = h.dist - rad * r.d.dot(h.normal) / (r.d.norm());
+    Vec3 hPos    = r.o + hDist * r.d;
+    Vec3 newDir  = (r.d - 2 * r.d.dot(h.normal) * h.normal).normalized();
+    spdlog::info(scene3d->objects.at(h.id)->name);
+    return Ray(hPos, newDir);
+  }
+};
