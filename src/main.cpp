@@ -39,7 +39,7 @@ int main(int argc, const char **argv) {
   sf::Clock deltaClock;
   sf::Music music;
 
-  ctx.scene3d = std::make_unique<Scene3D>(
+  ctx.scene3d = std::make_shared<Scene3D>(
       Camera(1.4, Vec3(0, 1.5, 5), 0, window.getSize().x, window.getSize().y));
 
   if (!music.openFromFile("soundtrack.wav"))

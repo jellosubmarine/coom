@@ -179,6 +179,11 @@ struct Sphere : public SceneObject {
     if (t < 0) {
       return Hit();
     }
+    // Ray inside sphere
+    if (e_.dot(e_) < rad * rad) {
+      return Hit();
+    }
+
     Vec3 phit    = r.o + r.d * t;
     Vec3 hNormal = (phit - pos).normalized();
     return Hit(phit, hNormal, t);
@@ -202,34 +207,11 @@ struct Plane : public SceneObject {
       double dist = (pos - r.o).dot(normal) / r.d.dot(normal);
       if (dist < 0) {
         return Hit();
+      } else if (r.d.dot(normal) > 0) {
+        return Hit();
       } else {
         return Hit(r.o + dist * r.d, normal, dist);
       }
-    }
-  }
-};
-
-struct Projectile : public Sphere {
-  Vec3 direction;
-  const float speed       = 4;
-  int bouncesLeft         = 3;
-  const double bulletSize = 0.1;
-  Projectile(Vec3 position, Vec3 direction)
-      : Sphere(1, position, Material(Vec3(0.5, 0.5, 0), Vec3(1, 1, 0) * .8, DIFF), "Bullet"),
-        direction(direction) {
-    type = PROJECTILE;
-    direction.normalize();
-    rad = bulletSize;
-    pos += direction * 0.2;
-  }
-
-  void update(float dtime) override {
-    pos += direction * speed * dtime;
-    if ((pos.x() - bulletSize) < LEFT_WALL || (pos.x() + bulletSize) > RIGHT_WALL) {
-      destroyed = true;
-    }
-    if ((pos.z() - bulletSize) < FRONT_WALL || (pos.z() + bulletSize) > BACK_WALL) {
-      destroyed = true;
     }
   }
 };
