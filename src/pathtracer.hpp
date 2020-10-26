@@ -48,18 +48,8 @@ inline Vec3 clampVec(Vec3 in, Vec3 lower, Vec3 upper) {
 
 struct Ray {
   Vec3 o, d; // origin and direction
-  Vec3 invdir;
-  int sign[3];
-  Ray(Vec3 origin, Vec3 dir) : o(origin), d(dir) {
-    d = d / d.norm();
 
-    invdir = d.cwiseInverse();
-
-    sign[0] = (invdir[0] < 0);
-    sign[1] = (invdir[1] < 0);
-    sign[2] = (invdir[2] < 0);
-    // std::cout << sign[0] << "\n";
-  }
+  Ray(Vec3 origin, Vec3 dir) : o(origin), d(dir) { d = d / d.norm(); }
 };
 
 enum Refl_t { DIFF, SPEC, REFR };
@@ -184,8 +174,7 @@ struct Sphere : public SceneObject {
     return Hit(phit, Vec3(), t);
   }
 };
-// https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
-// https://tavianator.com/2011/ray_box.html
+
 struct Box : public SceneObject {
 
   Vec3 vmin, vmax;
@@ -201,13 +190,21 @@ struct Box : public SceneObject {
   Vec3 getNormal(Vec3 phit) { return phit; }
 
   Hit intersect(const Ray &r) const {
-
+    Vec3 invdir;
+    int sign[3];
     float tmin, tmax, tymin, tymax, tzmin, tzmax;
     double t;
-    tmin  = (bounds[r.sign[0]][0] - r.o[0]) * r.invdir[0];
-    tmax  = (bounds[1 - r.sign[0]][0] - r.o[0]) * r.invdir[0];
-    tymin = (bounds[r.sign[1]][1] - r.o[1]) * r.invdir[1];
-    tymax = (bounds[1 - r.sign[1]][1] - r.o[1]) * r.invdir[1];
+
+    invdir = r.d.cwiseInverse();
+
+    sign[0] = (invdir[0] < 0);
+    sign[1] = (invdir[1] < 0);
+    sign[2] = (invdir[2] < 0);
+
+    tmin  = (bounds[sign[0]][0] - r.o[0]) * invdir[0];
+    tmax  = (bounds[1 - sign[0]][0] - r.o[0]) * invdir[0];
+    tymin = (bounds[sign[1]][1] - r.o[1]) * invdir[1];
+    tymax = (bounds[1 - sign[1]][1] - r.o[1]) * invdir[1];
 
     if ((tmin > tymax) || (tymin > tmax))
       return Hit();
@@ -216,8 +213,8 @@ struct Box : public SceneObject {
     if (tymax < tmax)
       tmax = tymax;
 
-    tzmin = (bounds[r.sign[2]][2] - r.o[2]) * r.invdir[2];
-    tzmax = (bounds[1 - r.sign[2]][2] - r.o[2]) * r.invdir[2];
+    tzmin = (bounds[sign[2]][2] - r.o[2]) * invdir[2];
+    tzmax = (bounds[1 - sign[2]][2] - r.o[2]) * invdir[2];
 
     if ((tmin > tzmax) || (tzmin > tmax))
       return Hit();
@@ -324,7 +321,7 @@ struct Scene3D {
         0.5, Vec3(0, 0.5, 4), Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .999, DIFF), "Red sphere"));
     // Box
     objects.emplace_back(std::make_unique<Box>(Vec3(-1, 0, -1), Vec3(1, 1, 1), Vec3(0, 0, 6),
-                                               Material(Vec3(0, 0, 0), Vec3(1, 0, 1) * .4, DIFF),
+                                               Material(Vec3(0, 0, 0), Vec3(1, 0, 1) * .7, DIFF),
                                                "Box"));
 
     // Right wall
