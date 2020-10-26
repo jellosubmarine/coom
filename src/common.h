@@ -78,6 +78,7 @@ struct Projectile : public Sphere {
   }
   void update(float dtime) override {
     pos += direction * speed * dtime;
+    ctx->sounds.bouncingSound.setPosition(pos.x(), pos.y(), pos.z());
     if (getDistance(origin, pos) > targetDistance) {
 
       direction = path.at(pathIterator).d;
