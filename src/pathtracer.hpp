@@ -18,6 +18,14 @@
 #define AA_SAMPLES_PER_PIXEL 1
 #define DEPTH_LIMIT 4
 
+// hardcoded rectangle room
+#define FRONT_WALL -5
+#define BACK_WALL 6
+#define LEFT_WALL -5
+#define RIGHT_WALL 5
+// hardcoded camera physical size (collision sphere radius)
+#define CAMERA_SIZE 0.3
+
 using Vec3 = Eigen::Vector3d;
 
 inline double random_double() {
@@ -114,22 +122,24 @@ struct Camera {
   Eigen::Transform<double, 3, Eigen::Affine> t;
 
   Camera(double fov, Vec3 position, double angle, double height, double width)
-      : fov(fov), h(height), w(width), t(Eigen::Affine3d::Identity()) {
-    t.Identity();
+      : fov(fov), h(height), w(width) {
+    t.setIdentity();
     t.translate(position);
     t.rotate(Eigen::AngleAxis<double>(angle, Vec3::UnitY()));
   }
+
   Ray castRay(double x, double y) {
     Vec3 d(w * fov / h * (x / w - 0.5), (y / h - 0.5) * fov, -1);
     d = t.linear() * d.normalized();
 
     return Ray(t.translation(), d);
   }
-  void moveLinear(Vec3 deltaPos) { t = t.translate(deltaPos); }
+
+  void moveLinear(Vec3 deltaPos) { t.translate(deltaPos); }
 
   void turn(double angle) {
     Eigen::AngleAxis<double> aa(angle, Vec3::UnitY());
-    t = t * aa;
+    t = t.rotate(aa);
   }
 };
 
@@ -139,12 +149,13 @@ struct SceneObject {
   Material mat;
   Obj_t type;
   std::string name = "";
+  bool destroyed   = false; // If object should be destroyed now
   SceneObject(Vec3 pos, Material mat, std::string name) : pos(pos), mat(mat), name(name) {
     spdlog::info("{} created", name);
   }
-  virtual Vec3 getNormal([[maybe_unused]] Vec3 phit) = 0;
-  virtual Hit intersect(const Ray &r) const          = 0;
-  virtual ~SceneObject(){};
+  virtual Hit intersect(const Ray &r) const = 0;
+  virtual void update(float dt) {}
+  virtual ~SceneObject() { spdlog::info("{} destroyed", name); }
 };
 
 struct Sphere : public SceneObject {
@@ -154,7 +165,6 @@ struct Sphere : public SceneObject {
       : SceneObject(pos, mat, name), rad(rad) {
     type = SPHERE;
   }
-  Vec3 getNormal(Vec3 phit) { return phit; }
 
   Hit intersect(const Ray &r) const {
     Vec3 e_  = pos - r.o;
@@ -170,8 +180,14 @@ struct Sphere : public SceneObject {
     if (t < 0) {
       return Hit();
     }
-    Vec3 phit = r.o + r.d * t;
-    return Hit(phit, Vec3(), t);
+    // Ray inside sphere
+    if (e_.dot(e_) < rad * rad) {
+      return Hit();
+    }
+
+    Vec3 phit    = r.o + r.d * t;
+    Vec3 hNormal = (phit - pos).normalized();
+    return Hit(phit, hNormal, t);
   }
 };
 
@@ -245,7 +261,6 @@ struct Plane : public SceneObject {
     type = PLANE;
     normal.normalize();
   }
-  Vec3 getNormal([[maybe_unused]] Vec3 phit) { return normal; }
 
   Hit intersect(const Ray &r) const {
     double eps = 1e-4;
@@ -256,18 +271,14 @@ struct Plane : public SceneObject {
       double dist = (pos - r.o).dot(normal) / r.d.dot(normal);
       if (dist < 0) {
         return Hit();
+      } else if (r.d.dot(normal) > 0) {
+        return Hit();
       } else {
         return Hit(r.o + dist * r.d, normal, dist);
       }
     }
   }
 };
-
-// struct Projectile : public Sphere {
-//   Projectile() : Sphere() { type = PROJECTILE; }
-//   // direction, speed
-//   // update function
-// };
 
 struct Scene3D {
   std::vector<std::unique_ptr<SceneObject>> objects;
@@ -301,7 +312,18 @@ struct Scene3D {
     auto response = objects.at(h.id)->mat.bsdf(h);
     return result + radiance(response.ray, depth).cwiseProduct(response.transmittance);
   }
-  void generateMenu() {}
+
+  void update(float dt) {
+    for (auto &obj : objects) {
+      if (obj->type == PROJECTILE) {
+        obj->update(dt);
+      }
+    }
+    objects.erase(
+        std::remove_if(objects.begin(), objects.end(), [](auto &obj) { return obj->destroyed; }),
+        objects.end());
+  }
+
   void generateScene() {
     objects.clear();
     objects.emplace_back(std::make_unique<Sphere>(
@@ -325,11 +347,11 @@ struct Scene3D {
                                                "Box"));
 
     // Right wall
-    objects.emplace_back(std::make_unique<Plane>(Vec3(-1, 0, 0), Vec3(5, 0, 0),
+    objects.emplace_back(std::make_unique<Plane>(Vec3(-1, 0, 0), Vec3(RIGHT_WALL, 0, 0),
                                                  Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .5, DIFF),
                                                  "Right wall"));
     // Left wall
-    objects.emplace_back(std::make_unique<Plane>(Vec3(1, 0, 0), Vec3(-5, 0, 0),
+    objects.emplace_back(std::make_unique<Plane>(Vec3(1, 0, 0), Vec3(LEFT_WALL, 0, 0),
                                                  Material(Vec3(0, 0, 0), Vec3(0, 0, 1) * .5, DIFF),
                                                  "Left wall"));
     // Floor
@@ -340,11 +362,11 @@ struct Scene3D {
                                                  Material(Vec3(0, 0, 0), Vec3(1, 1, 1) * .9, DIFF),
                                                  "Ceiling"));
     // Front wall
-    objects.emplace_back(std::make_unique<Plane>(Vec3(0, 0, 1), Vec3(0, 0, -5),
+    objects.emplace_back(std::make_unique<Plane>(Vec3(0, 0, 1), Vec3(0, 0, FRONT_WALL),
                                                  Material(Vec3(0, 0, 0), Vec3(1, 0, 1) * .4, DIFF),
                                                  "Front wall"));
     // Back wall
-    objects.emplace_back(std::make_unique<Plane>(Vec3(0, 0, -1), Vec3(0, 0, 6),
+    objects.emplace_back(std::make_unique<Plane>(Vec3(0, 0, -1), Vec3(0, 0, BACK_WALL),
                                                  Material(Vec3(0, 0, 0), Vec3(1, 0, 1) * .4, DIFF),
                                                  "Back wall"));
 
