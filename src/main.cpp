@@ -16,6 +16,7 @@
 #include "optick.h"
 
 void createGUI();
+void loadSounds(AppContext &ctx);
 
 int main(int argc, const char **argv) {
   Options opt({std::next(argv), std::next(argv, argc)});
@@ -47,7 +48,7 @@ int main(int argc, const char **argv) {
   music.setLoop(true);
   music.play();
   float musicVolume = 5.f;
-
+  loadSounds(ctx);
   EventHandler event_handler;
 
   while (window.isOpen()) {
@@ -89,4 +90,11 @@ int main(int argc, const char **argv) {
   ImGui::SFML::Shutdown();
 
   return 0;
+}
+
+void loadSounds(AppContext &ctx) {
+  if (!ctx.shootingSoundBuffer.loadFromFile("shootingSound.wav")) {
+    spdlog::info("File doesnt exist.");
+  }
+  ctx.shootingSound.setBuffer(ctx.shootingSoundBuffer);
 }

@@ -206,6 +206,7 @@ void EventHandler::handleShooting(AppContext &ctx) {
       ctx.scene3d->objects.emplace_back(
           std::make_unique<Projectile>(ctx.scene3d->cam.t.translation() - Vec3::UnitY() * 0.2,
                                        ctx.scene3d->cam.t.linear() * Vec3(0, 0, -1), ctx));
+      ctx.shootingSound.play();
       // std::vector<Vec3> path = ((std::unique_ptr<Projectile>)ctx.scene3d->objects.back()).path;
       // for (auto &i : path) {
       //   ctx.scene3d->objects.emplace_back(

@@ -5,6 +5,7 @@
 #include <Eigen/Dense>
 #pragma warning(pop)
 
+#include <SFML/Audio.hpp>
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/System/Clock.hpp>
 #include <SFML/Window/Event.hpp>
@@ -30,6 +31,8 @@ struct AppContext {
   float dtime  = 0.f;
   std::shared_ptr<Scene3D> scene3d;
   bool enablePT = false;
+  sf::SoundBuffer shootingSoundBuffer;
+  sf::Sound shootingSound;
 };
 
 using Vec3 = Eigen::Vector3d;
