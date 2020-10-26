@@ -27,6 +27,7 @@ struct Pixel {
 };
 
 struct Sounds {
+  sf::Music music;
   sf::SoundBuffer shootingSoundBuffer;
   sf::Sound shootingSound;
   sf::SoundBuffer bouncingSoundBuffer;
@@ -57,16 +58,16 @@ struct Projectile : public Sphere {
   std::vector<Ray> path;
   int pathIterator        = 0;
   const float speed       = 4;
-  int bouncesLeft         = 3;
+  int bouncesLeft         = 4;
   const double bulletSize = 0.1;
   std::shared_ptr<Scene3D> scene3d;
   Vec3 origin;
   double targetDistance = 0;
-  AppContext ctx;
+  AppContext *ctx;
 
   Projectile(Vec3 position, Vec3 direction, AppContext &ctx)
       : Sphere(1, position, Material(Vec3(0.5, 0.5, 0), Vec3(1, 1, 0) * .8, DIFF), "Bullet"),
-        direction(direction), ctx(ctx), scene3d(ctx.scene3d) {
+        direction(direction), ctx(&ctx), scene3d(ctx.scene3d) {
     type   = PROJECTILE;
     origin = position;
     direction.normalize();
@@ -74,9 +75,6 @@ struct Projectile : public Sphere {
     pos += direction * 0.2;
     createPath();
     targetDistance = getDistance(origin, path.at(pathIterator).o);
-    // for (auto i : path) {
-    //   spdlog::info(i);
-    // }
   }
   void update(float dtime) override {
     pos += direction * speed * dtime;
@@ -90,16 +88,10 @@ struct Projectile : public Sphere {
         pathIterator = 0;
         destroyed    = true;
       } else {
-        ctx.sounds.bouncingSound.play();
+        ctx->sounds.bouncingSound.play();
       }
       targetDistance = getDistance(origin, path.at(pathIterator).o);
     }
-    // if ((pos.x() - bulletSize) < LEFT_WALL || (pos.x() + bulletSize) > RIGHT_WALL) {
-    //   destroyed = true;
-    // }
-    // if ((pos.z() - bulletSize) < FRONT_WALL || (pos.z() + bulletSize) > BACK_WALL) {
-    //   destroyed = true;
-    // }
   }
 
   void createPath() {
