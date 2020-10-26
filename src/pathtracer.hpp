@@ -4,6 +4,7 @@
 #include <Eigen/Dense>
 #pragma warning(pop)
 #include "optick.h"
+#include <iostream>
 #include <memory>
 #include <ostream>
 #include <random>
@@ -47,11 +48,22 @@ inline Vec3 clampVec(Vec3 in, Vec3 lower, Vec3 upper) {
 
 struct Ray {
   Vec3 o, d; // origin and direction
-  Ray(Vec3 origin, Vec3 dir) : o(origin), d(dir) { d = d / d.norm(); }
+  Vec3 invdir;
+  int sign[3];
+  Ray(Vec3 origin, Vec3 dir) : o(origin), d(dir) {
+    d = d / d.norm();
+
+    invdir = d.cwiseInverse();
+
+    sign[0] = (invdir[0] < 0);
+    sign[1] = (invdir[1] < 0);
+    sign[2] = (invdir[2] < 0);
+    // std::cout << sign[0] << "\n";
+  }
 };
 
 enum Refl_t { DIFF, SPEC, REFR };
-enum Obj_t { SPHERE, PLANE, PROJECTILE };
+enum Obj_t { SPHERE, PLANE, BOX, PROJECTILE };
 
 struct Hit {
   Vec3 point;
@@ -172,6 +184,62 @@ struct Sphere : public SceneObject {
     return Hit(phit, Vec3(), t);
   }
 };
+// https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
+// https://tavianator.com/2011/ray_box.html
+struct Box : public SceneObject {
+
+  Vec3 vmin, vmax;
+  Vec3 bounds[2];
+
+  Box(Vec3 vmin, Vec3 vmax, Vec3 pos, Material mat, std::string name)
+      : SceneObject(pos, mat, name), vmin(vmin), vmax(vmax) {
+    type      = BOX;
+    bounds[0] = vmin;
+    bounds[1] = vmax;
+  }
+
+  Vec3 getNormal(Vec3 phit) { return phit; }
+
+  Hit intersect(const Ray &r) const {
+
+    float tmin, tmax, tymin, tymax, tzmin, tzmax;
+    double t;
+    tmin  = (bounds[r.sign[0]][0] - r.o[0]) * r.invdir[0];
+    tmax  = (bounds[1 - r.sign[0]][0] - r.o[0]) * r.invdir[0];
+    tymin = (bounds[r.sign[1]][1] - r.o[1]) * r.invdir[1];
+    tymax = (bounds[1 - r.sign[1]][1] - r.o[1]) * r.invdir[1];
+
+    if ((tmin > tymax) || (tymin > tmax))
+      return Hit();
+    if (tymin > tmin)
+      tmin = tymin;
+    if (tymax < tmax)
+      tmax = tymax;
+
+    tzmin = (bounds[r.sign[2]][2] - r.o[2]) * r.invdir[2];
+    tzmax = (bounds[1 - r.sign[2]][2] - r.o[2]) * r.invdir[2];
+
+    if ((tmin > tzmax) || (tzmin > tmax))
+      return Hit();
+    if (tzmin > tmin)
+      tmin = tzmin;
+    if (tzmax < tmax)
+      tmax = tzmax;
+    t = tmin;
+
+    if (t < 0) {
+      t = tmax;
+      if (t < 0) {
+        return Hit();
+      }
+    }
+
+    Vec3 phit = r.o + r.d * t;
+    return Hit(phit, Vec3(), t);
+
+    //#return Hit(phit, Vec3(), t);
+  }
+};
 
 struct Plane : public SceneObject {
   Vec3 normal;
@@ -236,7 +304,7 @@ struct Scene3D {
     auto response = objects.at(h.id)->mat.bsdf(h);
     return result + radiance(response.ray, depth).cwiseProduct(response.transmittance);
   }
-
+  void generateMenu() {}
   void generateScene() {
     objects.clear();
     objects.emplace_back(std::make_unique<Sphere>(
@@ -254,6 +322,11 @@ struct Scene3D {
         1, Vec3(2, 3, -1), Material(Vec3(1, 1, 1), Vec3(1, 1, 1), DIFF), "Ceiling light 2"));
     objects.emplace_back(std::make_unique<Sphere>(
         0.5, Vec3(0, 0.5, 4), Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .999, DIFF), "Red sphere"));
+    // Box
+    objects.emplace_back(std::make_unique<Box>(Vec3(-1, 0, -1), Vec3(1, 1, 1), Vec3(0, 0, 6),
+                                               Material(Vec3(0, 0, 0), Vec3(1, 0, 1) * .4, DIFF),
+                                               "Box"));
+
     // Right wall
     objects.emplace_back(std::make_unique<Plane>(Vec3(-1, 0, 0), Vec3(5, 0, 0),
                                                  Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .5, DIFF),
@@ -277,6 +350,7 @@ struct Scene3D {
     objects.emplace_back(std::make_unique<Plane>(Vec3(0, 0, -1), Vec3(0, 0, 6),
                                                  Material(Vec3(0, 0, 0), Vec3(1, 0, 1) * .4, DIFF),
                                                  "Back wall"));
+
     spdlog::info("Scene created with {} elements", objects.size());
   }
 };
