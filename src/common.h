@@ -31,9 +31,7 @@ struct Sounds {
   sf::SoundBuffer shootingSoundBuffer;
   sf::Sound shootingSound;
   sf::SoundBuffer bouncingSoundBuffer;
-  sf::Sound bouncingSound;
   sf::SoundBuffer flyingSoundBuffer;
-  sf::Sound flyingSound;
 };
 
 struct AppContext {
@@ -66,6 +64,8 @@ struct Projectile : public Sphere {
   Vec3 origin;
   double targetDistance = 0;
   AppContext *ctx;
+  sf::Sound flyingSound;
+  sf::Sound bouncingSound;
 
   Projectile(Vec3 position, Vec3 direction, AppContext &ctx)
       : Sphere(1, position, Material(Vec3(1, 1, 0), Vec3(1, 1, 0) * 1.0, DIFF), "Bullet"),
@@ -77,10 +77,20 @@ struct Projectile : public Sphere {
     pos += direction * 0.2;
     createPath();
     targetDistance = getDistance(origin, path.at(pathIterator).o);
+    bouncingSound.setBuffer(ctx.sounds.bouncingSoundBuffer);
+    bouncingSound.setMinDistance(2.f);
+    bouncingSound.setAttenuation(0.8f);
+    flyingSound.setBuffer(ctx.sounds.flyingSoundBuffer);
+    flyingSound.setMinDistance(2.f);
+    flyingSound.setAttenuation(0.8f);
+    flyingSound.setLoop(true);
+    flyingSound.play();
   }
   void update(float dtime) override {
     pos += direction * speed * dtime;
-    ctx->sounds.bouncingSound.setPosition(pos.x(), pos.y(), pos.z());
+    bouncingSound.setPosition(pos.x(), pos.y(), pos.z());
+    flyingSound.setPosition(pos.x(), pos.y(), pos.z());
+
     if (getDistance(origin, pos) > targetDistance) {
 
       direction = path.at(pathIterator).d;
@@ -90,8 +100,9 @@ struct Projectile : public Sphere {
       if (pathIterator >= bouncesLeft) {
         pathIterator = 0;
         destroyed    = true;
+        flyingSound.stop();
       } else {
-        ctx->sounds.bouncingSound.play();
+        bouncingSound.play();
       }
       targetDistance = getDistance(origin, path.at(pathIterator).o);
     }
