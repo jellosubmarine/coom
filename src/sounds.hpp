@@ -12,11 +12,14 @@ inline void loadSounds(AppContext &ctx) {
     spdlog::info("File doesnt exist.");
   }
   ctx.sounds.shootingSound.setBuffer(ctx.sounds.shootingSoundBuffer);
+  ctx.sounds.shootingSound.setRelativeToListener(true);
+  ctx.sounds.shootingSound.setPosition(0.f, -0.5f, 0.f);
+
   if (!ctx.sounds.bouncingSoundBuffer.loadFromFile("bulletBounce.wav")) {
     spdlog::info("File doesnt exist.");
   }
 
   ctx.sounds.bouncingSound.setBuffer(ctx.sounds.bouncingSoundBuffer);
-  ctx.sounds.bouncingSound.setMinDistance(1.f);
-  ctx.sounds.bouncingSound.setAttenuation(1.f);
+  ctx.sounds.bouncingSound.setMinDistance(2.f);
+  ctx.sounds.bouncingSound.setAttenuation(0.8f);
 }
