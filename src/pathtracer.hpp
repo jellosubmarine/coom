@@ -15,9 +15,9 @@
 #define INF 1e20
 #define EPSILON 1e-4
 // Ideally option, not a hard define
-#define SAMPLES_PER_PIXEL 10
+#define SAMPLES_PER_PIXEL 5
 #define AA_SAMPLES_PER_PIXEL 1
-#define DEPTH_LIMIT 4
+#define DEPTH_LIMIT 3
 
 // hardcoded rectangle room
 #define FRONT_WALL -5
@@ -283,9 +283,9 @@ struct Scene3D {
         0.4, Vec3(2, 0.4, -1.5), Material(Vec3(0, 0, 0), Vec3(1, 1, 0) * .999, DIFF),
         "Yellow sphere"));
     objects.emplace_back(std::make_unique<Sphere>(
-        1, Vec3(-2, 3, -1), Material(Vec3(1, 1, 1), Vec3(1, 1, 1), DIFF), "Ceiling light"));
+        0.3, Vec3(-2, 3, -1), Material(Vec3(1, 1, 1), Vec3(1, 1, 1), DIFF), "Ceiling light"));
     objects.emplace_back(std::make_unique<Sphere>(
-        1, Vec3(2, 3, -1), Material(Vec3(1, 1, 1), Vec3(1, 1, 1), DIFF), "Ceiling light 2"));
+        0.3, Vec3(2, 3, -1), Material(Vec3(1, 1, 1), Vec3(1, 1, 1), DIFF), "Ceiling light 2"));
     objects.emplace_back(std::make_unique<Sphere>(
         0.5, Vec3(0, 0.5, 4), Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .999, DIFF), "Red sphere"));
     // Right wall

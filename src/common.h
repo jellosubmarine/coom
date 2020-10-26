@@ -32,6 +32,8 @@ struct Sounds {
   sf::Sound shootingSound;
   sf::SoundBuffer bouncingSoundBuffer;
   sf::Sound bouncingSound;
+  sf::SoundBuffer flyingSoundBuffer;
+  sf::Sound flyingSound;
 };
 
 struct AppContext {
@@ -59,14 +61,14 @@ struct Projectile : public Sphere {
   int pathIterator        = 0;
   const float speed       = 4;
   int bouncesLeft         = 4;
-  const double bulletSize = 0.1;
+  const double bulletSize = 0.3;
   std::shared_ptr<Scene3D> scene3d;
   Vec3 origin;
   double targetDistance = 0;
   AppContext *ctx;
 
   Projectile(Vec3 position, Vec3 direction, AppContext &ctx)
-      : Sphere(1, position, Material(Vec3(0.5, 0.5, 0), Vec3(1, 1, 0) * .8, DIFF), "Bullet"),
+      : Sphere(1, position, Material(Vec3(1, 1, 0), Vec3(1, 1, 0) * 1.0, DIFF), "Bullet"),
         direction(direction), ctx(&ctx), scene3d(ctx.scene3d) {
     type   = PROJECTILE;
     origin = position;
