@@ -4,6 +4,7 @@
 #include <Eigen/Dense>
 #pragma warning(pop)
 #include "optick.h"
+#include <SFML/Audio.hpp>
 #include <iostream>
 #include <memory>
 #include <ostream>
@@ -14,9 +15,9 @@
 #define INF 1e20
 #define EPSILON 1e-4
 // Ideally option, not a hard define
-#define SAMPLES_PER_PIXEL 10
+#define SAMPLES_PER_PIXEL 5
 #define AA_SAMPLES_PER_PIXEL 1
-#define DEPTH_LIMIT 4
+#define DEPTH_LIMIT 3
 
 // hardcoded rectangle room
 #define FRONT_WALL -5
@@ -119,12 +120,16 @@ struct Camera {
   double h;
   double w;
   Eigen::Transform<double, 3, Eigen::Affine> t;
+  Vec3 dir;
 
   Camera(double fov, Vec3 position, double angle, double height, double width)
       : fov(fov), h(height), w(width) {
     t.setIdentity();
     t.translate(position);
     t.rotate(Eigen::AngleAxis<double>(angle, Vec3::UnitY()));
+    sf::Listener::setPosition(position.x(), position.y(), position.z());
+    dir = t.linear() * -1 * Vec3::UnitZ();
+    sf::Listener::setDirection(dir.x(), dir.y(), dir.z());
   }
 
   Ray castRay(double x, double y) {
@@ -134,11 +139,17 @@ struct Camera {
     return Ray(t.translation(), d);
   }
 
-  void moveLinear(Vec3 deltaPos) { t.translate(deltaPos); }
+  void moveLinear(Vec3 deltaPos) {
+    t.translate(deltaPos);
+    Vec3 position = t.translation();
+    sf::Listener::setPosition(position.x(), position.y(), position.z());
+  }
 
   void turn(double angle) {
     Eigen::AngleAxis<double> aa(angle, Vec3::UnitY());
-    t = t.rotate(aa);
+    t   = t.rotate(aa);
+    dir = t.linear() * -1 * Vec3::UnitZ();
+    sf::Listener::setDirection(dir.x(), dir.y(), dir.z());
   }
 };
 
@@ -272,9 +283,9 @@ struct Scene3D {
         0.4, Vec3(2, 0.4, -1.5), Material(Vec3(0, 0, 0), Vec3(1, 1, 0) * .999, DIFF),
         "Yellow sphere"));
     objects.emplace_back(std::make_unique<Sphere>(
-        1, Vec3(-2, 3, -1), Material(Vec3(1, 1, 1), Vec3(1, 1, 1), DIFF), "Ceiling light"));
+        0.3, Vec3(-2, 3, -1), Material(Vec3(1, 1, 1), Vec3(1, 1, 1), DIFF), "Ceiling light"));
     objects.emplace_back(std::make_unique<Sphere>(
-        1, Vec3(2, 3, -1), Material(Vec3(1, 1, 1), Vec3(1, 1, 1), DIFF), "Ceiling light 2"));
+        0.3, Vec3(2, 3, -1), Material(Vec3(1, 1, 1), Vec3(1, 1, 1), DIFF), "Ceiling light 2"));
     objects.emplace_back(std::make_unique<Sphere>(
         0.5, Vec3(0, 0.5, 4), Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .999, DIFF), "Red sphere"));
     // Right wall
