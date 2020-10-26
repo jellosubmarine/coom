@@ -1,5 +1,6 @@
 #include "common.h"
 
+#include "sounds.hpp"
 #include <SFML/Audio.hpp>
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/System/Clock.hpp>
@@ -37,16 +38,12 @@ int main(int argc, const char **argv) {
 
   AppContext ctx;
   sf::Clock deltaClock;
-  sf::Music music;
 
   ctx.scene3d = std::make_shared<Scene3D>(
       Camera(1.4, Vec3(0, 1.5, 5), 0, window.getSize().x, window.getSize().y));
 
-  if (!music.openFromFile("soundtrack.wav"))
-    return -1;
-  music.setLoop(true);
-  music.play();
   float musicVolume = 5.f;
+  loadSounds(ctx);
 
   EventHandler event_handler;
 
@@ -66,7 +63,7 @@ int main(int argc, const char **argv) {
     ImGui::SliderFloat("Music volume", &musicVolume, 0.0f, 100.0f);
     ImGui::End();
 
-    music.setVolume(musicVolume);
+    ctx.sounds.music.setVolume(musicVolume);
     // END GUI
 
     event_handler.handleEvents(window);

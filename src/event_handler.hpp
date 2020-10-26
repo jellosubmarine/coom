@@ -2,9 +2,11 @@
 
 #include "common.h"
 
+#include <SFML/Audio.hpp>
 #include <SFML/System/Err.hpp>
 #include <SFML/Window/Event.hpp>
 #include <imgui-SFML.h>
+
 #include <imgui.h>
 
 #define LIN_SPEED 2
@@ -69,6 +71,8 @@ private:
 
   ToggleKeyboardKeys keys;
   Shooting shooting;
+  Sounds sounds;
+
   const unsigned int deadzone = 20; // percentage
 
 public:
