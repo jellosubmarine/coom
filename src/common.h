@@ -26,13 +26,19 @@ struct Pixel {
   Color4 color;
 };
 
+struct Sounds {
+  sf::SoundBuffer shootingSoundBuffer;
+  sf::Sound shootingSound;
+  sf::SoundBuffer bouncingSoundBuffer;
+  sf::Sound bouncingSound;
+};
+
 struct AppContext {
   size_t frame = 0;
   float dtime  = 0.f;
   std::shared_ptr<Scene3D> scene3d;
   bool enablePT = false;
-  sf::SoundBuffer shootingSoundBuffer;
-  sf::Sound shootingSound;
+  Sounds sounds;
 };
 
 using Vec3 = Eigen::Vector3d;
@@ -56,10 +62,11 @@ struct Projectile : public Sphere {
   std::shared_ptr<Scene3D> scene3d;
   Vec3 origin;
   double targetDistance = 0;
+  AppContext ctx;
 
   Projectile(Vec3 position, Vec3 direction, AppContext &ctx)
       : Sphere(1, position, Material(Vec3(0.5, 0.5, 0), Vec3(1, 1, 0) * .8, DIFF), "Bullet"),
-        direction(direction), scene3d(ctx.scene3d) {
+        direction(direction), ctx(ctx), scene3d(ctx.scene3d) {
     type   = PROJECTILE;
     origin = position;
     direction.normalize();
@@ -82,6 +89,8 @@ struct Projectile : public Sphere {
       if (pathIterator >= bouncesLeft) {
         pathIterator = 0;
         destroyed    = true;
+      } else {
+        ctx.sounds.bouncingSound.play();
       }
       targetDistance = getDistance(origin, path.at(pathIterator).o);
     }

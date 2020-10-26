@@ -93,8 +93,12 @@ int main(int argc, const char **argv) {
 }
 
 void loadSounds(AppContext &ctx) {
-  if (!ctx.shootingSoundBuffer.loadFromFile("shootingSound.wav")) {
+  if (!ctx.sounds.shootingSoundBuffer.loadFromFile("shootingSound.wav")) {
     spdlog::info("File doesnt exist.");
   }
-  ctx.shootingSound.setBuffer(ctx.shootingSoundBuffer);
+  ctx.sounds.shootingSound.setBuffer(ctx.sounds.shootingSoundBuffer);
+  if (!ctx.sounds.bouncingSoundBuffer.loadFromFile("bulletBounce.wav")) {
+    spdlog::info("File doesnt exist.");
+  }
+  ctx.sounds.bouncingSound.setBuffer(ctx.sounds.bouncingSoundBuffer);
 }

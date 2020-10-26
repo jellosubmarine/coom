@@ -55,10 +55,6 @@ struct Shooting {
   float timeout     = SHOT_TIMEOUT;
 };
 
-struct Sounds {
-  bool moving = false;
-};
-
 class EventHandler {
 private:
   float key_forward{};
