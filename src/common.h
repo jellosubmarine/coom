@@ -32,6 +32,8 @@ struct Sounds {
   sf::Sound shootingSound;
   sf::SoundBuffer bouncingSoundBuffer;
   sf::SoundBuffer flyingSoundBuffer;
+  sf::SoundBuffer movingSoundBuffer;
+  sf::Sound movingSound;
 };
 
 struct AppContext {

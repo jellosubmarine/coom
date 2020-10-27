@@ -22,4 +22,12 @@ inline void loadSounds(AppContext &ctx) {
   if (!ctx.sounds.flyingSoundBuffer.loadFromFile("bulletFlying.wav")) {
     spdlog::info("File doesnt exist.");
   }
+  if (!ctx.sounds.movingSoundBuffer.loadFromFile("playerMovement.wav")) {
+    spdlog::info("File doesnt exist.");
+  }
+  ctx.sounds.movingSound.setBuffer(ctx.sounds.movingSoundBuffer);
+  ctx.sounds.movingSound.setRelativeToListener(true);
+  ctx.sounds.movingSound.setPosition(0.f, -1.5f, 0.f);
+  ctx.sounds.movingSound.setVolume(40.f);
+  ctx.sounds.movingSound.setLoop(true);
 }

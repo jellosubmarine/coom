@@ -157,15 +157,26 @@ void EventHandler::characterMovement(AppContext &ctx) {
   float forward = (abs(key_forward) >= abs(joy_forward)) ? key_forward : joy_forward;
   float turn    = (abs(key_turn) >= abs(joy_turn)) ? key_turn : joy_turn;
   float strafe  = (abs(key_strafe) >= abs(joy_strafe)) ? key_strafe : joy_strafe;
-
+  sf::SoundSource::Status status = ctx.sounds.movingSound.getStatus();
   if (forward != 0 || strafe != 0) {
     Vec3 lin{0, 0, 0};
     lin = lin + -forward * Vec3::UnitZ() * ctx.dtime * LIN_SPEED;
     lin = lin + strafe * Vec3::UnitX() * ctx.dtime * LIN_SPEED;
     ctx.scene3d->cam.moveLinear(lin);
+    if (status == sf::SoundSource::Paused || status == sf::SoundSource::Stopped) {
+      ctx.sounds.movingSound.play();
+    }
   }
   if (turn != 0) {
     ctx.scene3d->cam.turn(turn * -1 * ctx.dtime * TURN_SPEED);
+    if (status == sf::SoundSource::Paused || status == sf::SoundSource::Stopped) {
+      ctx.sounds.movingSound.play();
+    }
+  }
+  if (turn == 0 && forward == 0 && strafe == 0) {
+    if (status == sf::SoundSource::Playing) {
+      ctx.sounds.movingSound.stop();
+    }
   }
 }
 
