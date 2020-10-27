@@ -101,30 +101,10 @@ struct Material {
                                   (h.normal.dot(direction) / UniformHemispherePdf()));
     } else if (type == SPEC) {
       Vec3 direction = r.d - h.normal*2*h.normal.dot(r.d);
-      return MaterialResponse(Ray(h.point, direction), (baseColor / EIGEN_PI));
+      return MaterialResponse(Ray(h.point, direction), (baseColor / EIGEN_PI)*
+                                  (h.normal.dot(direction) / UniformHemispherePdf()));
     }
-    else{
-      double refractive_idx=1.5;
-      double RO=(1.0-refractive_idx)/(1.0+refractive_idx);
-      RO=RO*RO;
-      Vec3 N = h.normal;
-      if(N.dot(r.d)>0){
-        N = N*-1;
-        refractive_idx=1/refractive_idx;
-      }
-      refractive_idx=1/refractive_idx;
-      double cos_theta1=(N.dot(r.d))*-1;
-      double cos_theta2=1.0-refractive_idx*refractive_idx*(1.0-cos_theta1*cos_theta1);
-      double Rprob = RO + (1.0 - RO)*pow(1.0-cos_theta1,5.0);
-      if (cos_theta2>0 && random_double()>Rprob){
-        Vec3 direction=((r.d*refractive_idx)+(N*(refractive_idx*cos_theta1-sqrt(cos_theta2))));
-        return MaterialResponse(Ray(h.point, direction), (baseColor / EIGEN_PI));
-      }else{
-        Vec3 direction = r.d - h.normal*2*h.normal.dot(r.d);
-        return MaterialResponse(Ray(h.point, direction), (baseColor / EIGEN_PI));
-      }
-      
-    }
+    
   }
 };
 
@@ -314,7 +294,7 @@ struct Scene3D {
     objects.emplace_back(std::make_unique<Sphere>(
         0.3, Vec3(2, 3, -1), Material(Vec3(1, 1, 1), Vec3(1, 1, 1), DIFF), "Ceiling light 2"));
     objects.emplace_back(std::make_unique<Sphere>(
-        0.5, Vec3(0, 0.5, 4), Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .999, REFR), "Red sphere"));
+        0.5, Vec3(0, 0.5, 4), Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .999, DIFF), "Red sphere"));
     // Right wall
     objects.emplace_back(std::make_unique<Plane>(Vec3(-1, 0, 0), Vec3(RIGHT_WALL, 0, 0),
                                                  Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .5, DIFF),
