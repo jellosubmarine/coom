@@ -101,7 +101,8 @@ struct Material {
                                   (h.normal.dot(direction) / UniformHemispherePdf()));
     } else if (type == SPEC) {
       Vec3 direction = r.d - h.normal*2*h.normal.dot(r.d);
-      return MaterialResponse(Ray(h.point, direction), (baseColor / EIGEN_PI));
+      return MaterialResponse(Ray(h.point, direction), (baseColor / EIGEN_PI)*
+                                  (h.normal.dot(direction) / UniformHemispherePdf()));
     }
   }
 };
