@@ -104,7 +104,31 @@ struct Material {
       return MaterialResponse(Ray(h.point, direction), (baseColor / EIGEN_PI)*
                                   (h.normal.dot(direction) / UniformHemispherePdf()));
     }
-    
+    else{
+      double refractive_idx=1.52; //Using Test Refraction index for plate glass
+      double RO=(1.0-refractive_idx)/(1.0+refractive_idx);
+      RO=RO*RO;
+      Vec3 N = h.normal;
+      if(N.dot(r.d)>0){   // Determining if within medium
+        N = N*-1;
+        refractive_idx=1/refractive_idx;
+      }
+      refractive_idx=1/refractive_idx;
+      // Computing refraction using Snell's Law
+      double cos_theta1=(N.dot(r.d))*-1;  //Computing CosTheta1
+      double cos_theta2=1.0-refractive_idx*refractive_idx*(1.0-cos_theta1*cos_theta1);  //Computing CostTheta2
+      double Rprob = RO + (1.0 - RO)*pow(1.0-cos_theta1,5.0); //Schlick Approximation
+      if (cos_theta2>0 && random_double()>Rprob){ //Refraction
+        Vec3 direction=((r.d*refractive_idx)+(N*(refractive_idx*cos_theta1-sqrt(cos_theta2))));
+        return MaterialResponse(Ray(h.point, direction), (baseColor / EIGEN_PI)*
+                                  (h.normal.dot(direction) / UniformHemispherePdf()));
+      }else{  //Else do reflection
+        Vec3 direction = r.d - h.normal*2*h.normal.dot(r.d);
+        return MaterialResponse(Ray(h.point, direction), (baseColor / EIGEN_PI)*
+                                  (h.normal.dot(direction) / UniformHemispherePdf()));
+      }
+      
+    }
   }
 };
 
@@ -294,7 +318,7 @@ struct Scene3D {
     objects.emplace_back(std::make_unique<Sphere>(
         0.3, Vec3(2, 3, -1), Material(Vec3(1, 1, 1), Vec3(1, 1, 1), DIFF), "Ceiling light 2"));
     objects.emplace_back(std::make_unique<Sphere>(
-        0.5, Vec3(0, 0.5, 4), Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .999, DIFF), "Red sphere"));
+        0.5, Vec3(0, 0.5, 4), Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .999, REFR), "Red sphere"));
     // Right wall
     objects.emplace_back(std::make_unique<Plane>(Vec3(-1, 0, 0), Vec3(RIGHT_WALL, 0, 0),
                                                  Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .5, DIFF),
