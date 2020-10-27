@@ -42,7 +42,7 @@ int main(int argc, const char **argv) {
   ctx.scene3d = std::make_shared<Scene3D>(
       Camera(1.4, Vec3(0, 1.5, 5), 0, window.getSize().x, window.getSize().y));
 
-  float musicVolume = 5.f;
+  float musicVolume = 15.f;
   loadSounds(ctx);
 
   EventHandler event_handler;
