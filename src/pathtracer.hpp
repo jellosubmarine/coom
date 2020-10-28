@@ -194,33 +194,26 @@ struct Sphere : public SceneObject {
 struct Box : public SceneObject {
 
   Vec3 vmin, vmax;
-  Vec3 bounds[2];
 
   Box(Vec3 vmin, Vec3 vmax, Vec3 pos, Material mat, std::string name)
       : SceneObject(pos, mat, name), vmin(vmin), vmax(vmax) {
-    type      = BOX;
-    bounds[0] = vmin;
-    bounds[1] = vmax;
+    type = BOX;
   }
 
   Vec3 getNormal(Vec3 phit) { return phit; }
 
   Hit intersect(const Ray &r) const {
     Vec3 invdir;
-    int sign[3];
+
     float tmin, tmax, tymin, tymax, tzmin, tzmax;
     double t;
 
     invdir = r.d.cwiseInverse();
 
-    sign[0] = (invdir[0] < 0);
-    sign[1] = (invdir[1] < 0);
-    sign[2] = (invdir[2] < 0);
-
-    tmin  = (bounds[sign[0]][0] - r.o[0]) * invdir[0];
-    tmax  = (bounds[1 - sign[0]][0] - r.o[0]) * invdir[0];
-    tymin = (bounds[sign[1]][1] - r.o[1]) * invdir[1];
-    tymax = (bounds[1 - sign[1]][1] - r.o[1]) * invdir[1];
+    tmin  = invdir[0] < 0 ? (vmax[0] - r.o[0]) * invdir[0] : (vmin[0] - r.o[0]) * invdir[0];
+    tmax  = invdir[0] < 0 ? (vmin[0] - r.o[0]) * invdir[0] : (vmax[0] - r.o[0]) * invdir[0];
+    tymin = invdir[1] < 0 ? (vmax[1] - r.o[1]) * invdir[1] : (vmin[1] - r.o[1]) * invdir[1];
+    tymax = invdir[1] < 0 ? (vmin[1] - r.o[1]) * invdir[1] : (vmax[1] - r.o[1]) * invdir[1];
 
     if ((tmin > tymax) || (tymin > tmax))
       return Hit();
@@ -229,8 +222,8 @@ struct Box : public SceneObject {
     if (tymax < tmax)
       tmax = tymax;
 
-    tzmin = (bounds[sign[2]][2] - r.o[2]) * invdir[2];
-    tzmax = (bounds[1 - sign[2]][2] - r.o[2]) * invdir[2];
+    tzmin = invdir[2] < 0 ? (vmax[2] - r.o[2]) * invdir[2] : (vmin[2] - r.o[2]) * invdir[2];
+    tzmax = invdir[2] < 0 ? (vmin[2] - r.o[2]) * invdir[2] : (vmax[2] - r.o[2]) * invdir[2];
 
     if ((tmin > tzmax) || (tzmin > tmax))
       return Hit();
@@ -249,8 +242,6 @@ struct Box : public SceneObject {
 
     Vec3 phit = r.o + r.d * t;
     return Hit(phit, Vec3(), t);
-
-    //#return Hit(phit, Vec3(), t);
   }
 };
 
