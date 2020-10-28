@@ -18,7 +18,7 @@
 // Ideally option, not a hard define
 #define SAMPLES_PER_PIXEL 5
 #define AA_SAMPLES_PER_PIXEL 1
-#define DEPTH_LIMIT 3
+#define DEPTH_LIMIT 4
 
 // hardcoded rectangle room
 #define FRONT_WALL -5
@@ -254,7 +254,7 @@ struct Scene3D {
       return Vec3(0, 0, 0);
     }
     Vec3 result = objects.at(h.id)->mat.emissivity;
-    if (++depth > 2) {
+    if (++depth > DEPTH_LIMIT) {
       return result;
     }
     auto response = objects.at(h.id)->mat.bsdf(h);
@@ -265,20 +265,16 @@ struct Scene3D {
     std::stack<Vec3> emissivities;
     std::stack<Vec3> transmittances;
     Ray ray = r;
-
-    for (int i = 0; i < 2; i++) {
+#pragma omp parallel for schedule(dynamic)
+    for (int i = 0; i < DEPTH_LIMIT; i++) {
       Hit h = sceneIntersect(ray);
       if (!h) {
-        return Vec3(0, 0, 0);
+        break;
       }
       emissivities.push(objects.at(h.id)->mat.emissivity);
       auto response = objects.at(h.id)->mat.bsdf(h);
       ray           = response.ray;
-      if (i == 0) {
-        transmittances.push(Vec3(1, 1, 1));
-      } else {
-        transmittances.push(response.transmittance);
-      }
+      transmittances.push(response.transmittance);
     }
 
     Vec3 result(0, 0, 0);
