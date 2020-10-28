@@ -88,7 +88,7 @@ struct Projectile : public Sphere {
     flyingSound.setLoop(true);
     flyingSound.play();
   }
-  void update(float dtime) override {
+  void update(float dtime) {
     pos += direction * speed * dtime;
     bouncingSound.setPosition(pos.x(), pos.y(), pos.z());
     flyingSound.setPosition(pos.x(), pos.y(), pos.z());

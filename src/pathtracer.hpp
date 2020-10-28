@@ -153,8 +153,12 @@ struct Camera {
   }
 };
 
+struct AbstractObject {
+  virtual ~AbstractObject() = default;
+};
+
 // Objects
-struct SceneObject {
+template <class T> struct SceneObject : public AbstractObject {
   Vec3 pos; // position, emission and color
   Material mat;
   Obj_t type;
@@ -163,12 +167,12 @@ struct SceneObject {
   SceneObject(Vec3 pos, Material mat, std::string name) : pos(pos), mat(mat), name(name) {
     spdlog::info("{} created", name);
   }
-  virtual Hit intersect(const Ray &r) const = 0;
-  virtual void update(float dt) {}
-  virtual ~SceneObject() { spdlog::info("{} destroyed", name); }
+  Hit intersect(const Ray &r) const { static_cast<T *>(this)->intersect(); }
+  void update(float dt) {}
+  ~SceneObject() { spdlog::info("{} destroyed", name); }
 };
 
-struct Sphere : public SceneObject {
+struct Sphere : public SceneObject<Sphere> {
   double rad; // radius
 
   Sphere(double rad, Vec3 pos, Material mat, std::string name)
@@ -176,7 +180,7 @@ struct Sphere : public SceneObject {
     type = SPHERE;
   }
 
-  Hit intersect(const Ray &r) const {
+  Hit sphereIntersect(const Ray &r) const {
     Vec3 e_  = pos - r.o;
     double a = e_.dot(r.d);
 
@@ -201,7 +205,7 @@ struct Sphere : public SceneObject {
   }
 };
 
-struct Plane : public SceneObject {
+struct Plane : public SceneObject<Plane> {
   Vec3 normal;
   Plane(Vec3 normal, Vec3 pos, Material mat, std::string name)
       : SceneObject(pos, mat, name), normal(normal) {
@@ -228,7 +232,7 @@ struct Plane : public SceneObject {
 };
 
 struct Scene3D {
-  std::vector<std::unique_ptr<SceneObject>> objects;
+  std::vector<std::unique_ptr<AbstractObject>> objects;
   Camera cam;
 
   Scene3D(Camera cam) : cam(cam) { generateScene(); }
@@ -237,7 +241,10 @@ struct Scene3D {
     Hit h;
 
     for (auto i = 0; i < objects.size(); ++i) {
-      Hit d = objects.at(i)->intersect(r);
+      Hit d;
+
+      d = objects.at(i)->intersect(r);
+
       if (d < h) {
         h    = d;
         h.id = i;
@@ -261,14 +268,14 @@ struct Scene3D {
   }
 
   void update(float dt) {
-    for (auto &obj : objects) {
-      if (obj->type == PROJECTILE) {
-        obj->update(dt);
-      }
-    }
-    objects.erase(
-        std::remove_if(objects.begin(), objects.end(), [](auto &obj) { return obj->destroyed; }),
-        objects.end());
+    // for (auto &obj : objects) {
+    //   if (obj->type == PROJECTILE) {
+    //     obj->update(dt);
+    //   }
+    // }
+    // objects.erase(
+    //     std::remove_if(objects.begin(), objects.end(), [](auto &obj) { return obj->destroyed; }),
+    //     objects.end());
   }
 
   void generateScene() {
