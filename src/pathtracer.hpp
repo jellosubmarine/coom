@@ -10,6 +10,7 @@
 #include <ostream>
 #include <random>
 #include <spdlog/spdlog.h>
+#include <stack>
 #include <vector>
 
 #define INF 1e20
@@ -253,11 +254,40 @@ struct Scene3D {
       return Vec3(0, 0, 0);
     }
     Vec3 result = objects.at(h.id)->mat.emissivity;
-    if (++depth > DEPTH_LIMIT) {
+    if (++depth > 2) {
       return result;
     }
     auto response = objects.at(h.id)->mat.bsdf(h);
     return result + radiance(response.ray, depth).cwiseProduct(response.transmittance);
+  }
+
+  Vec3 radiance_loop(const Ray &r, int depth) {
+    std::stack<Vec3> emissivities;
+    std::stack<Vec3> transmittances;
+    Ray ray = r;
+
+    for (int i = 0; i < 2; i++) {
+      Hit h = sceneIntersect(ray);
+      if (!h) {
+        return Vec3(0, 0, 0);
+      }
+      emissivities.push(objects.at(h.id)->mat.emissivity);
+      auto response = objects.at(h.id)->mat.bsdf(h);
+      ray           = response.ray;
+      if (i == 0) {
+        transmittances.push(Vec3(1, 1, 1));
+      } else {
+        transmittances.push(response.transmittance);
+      }
+    }
+
+    Vec3 result(0, 0, 0);
+    while (!emissivities.empty()) {
+      result = (result + emissivities.top()).cwiseProduct(transmittances.top());
+      emissivities.pop();
+      transmittances.pop();
+    }
+    return result;
   }
 
   void update(float dt) {
