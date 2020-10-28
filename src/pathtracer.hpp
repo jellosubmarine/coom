@@ -240,8 +240,9 @@ struct Box : public SceneObject {
       }
     }
 
-    Vec3 phit = r.o + r.d * t;
-    return Hit(phit, Vec3(), t);
+    Vec3 phit    = r.o + r.d * t;
+    Vec3 hNormal = (phit - pos).normalized();
+    return Hit(phit, hNormal, t);
   }
 };
 
