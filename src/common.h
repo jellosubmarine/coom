@@ -77,6 +77,8 @@ struct Projectile : public Sphere {
     direction.normalize();
     rad = bulletSize;
     pos += direction * 0.2;
+    mat.emissivity =
+        Vec3(0.5 + 0.5 * random_double(), 0.5 + 0.5 * random_double(), 0.5 + 0.5 * random_double());
     createPath();
     targetDistance = getDistance(origin, path.at(pathIterator).o);
     bouncingSound.setBuffer(ctx.sounds.bouncingSoundBuffer);

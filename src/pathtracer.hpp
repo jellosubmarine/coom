@@ -88,7 +88,7 @@ struct Material {
   Material(Vec3 emissivity, Vec3 baseColor, Refl_t type)
       : emissivity(emissivity), baseColor(baseColor), type(type) {}
   // Totally not copied code, needs improving
-  MaterialResponse bsdf(Hit const &h,const Ray &r) {
+  MaterialResponse bsdf(Hit const &h, const Ray &r) {
     if (type == DIFF) {
       Vec3 hemi = UniformSampleHemisphere(random_double(), random_double());
       Vec3 w    = h.normal;
@@ -100,8 +100,9 @@ struct Material {
                               (baseColor / EIGEN_PI) *
                                   (h.normal.dot(direction) / UniformHemispherePdf()));
     } else if (type == SPEC) {
-      Vec3 direction = r.d - h.normal*2*h.normal.dot(r.d);
-      return MaterialResponse(Ray(h.point, direction), (baseColor / EIGEN_PI)*
+      Vec3 direction = r.d - h.normal * 2 * h.normal.dot(r.d);
+      return MaterialResponse(Ray(h.point, direction),
+                              (baseColor / EIGEN_PI) *
                                   (h.normal.dot(direction) / UniformHemispherePdf()));
     }
   }
