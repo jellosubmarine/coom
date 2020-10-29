@@ -104,7 +104,7 @@ struct Material {
       return MaterialResponse(Ray(h.point, direction), (baseColor / EIGEN_PI)*
                                   (h.normal.dot(direction) / UniformHemispherePdf()));
     }
-    else{
+    else if(type==REFR){
       double refractive_idx=1.52; //Using Test Refraction index for plate glass
       double RO=(1.0-refractive_idx)/(1.0+refractive_idx);
       RO=RO*RO;
