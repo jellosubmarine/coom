@@ -279,7 +279,7 @@ struct Scene3D {
         break;
       }
       emissivities.push(objects.at(h.id)->mat.emissivity);
-      auto response = objects.at(h.id)->mat.bsdf(h);
+      auto response = objects.at(h.id)->mat.bsdf(h, ray);
       ray           = response.ray;
       transmittances.push(response.transmittance);
     }
