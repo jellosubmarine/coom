@@ -240,12 +240,12 @@ struct Box : public SceneObject {
       }
     }
 
-    Vec3 phit    = r.o + r.d * t;
-    Vec3 hNormal = (phit - pos).normalized();
-
-    // https://blog.johnnovak.net/2016/10/22/the-nim-raytracer-project-part-4-calculating-box-normals/
-
+    Vec3 phit   = r.o + r.d * t;
     Vec3 center = (vmin + vmax) / 2;
+    Vec3 hitp   = phit - center;
+    Vec3 d      = (vmin - vmax) / 2;
+
+    Vec3 hNormal = Vec3(hitp[0] / abs(d[0]), hitp[1] / abs(d[1]), hitp[2] / abs(d[2])).normalized();
 
     return Hit(phit, hNormal, t);
   }
