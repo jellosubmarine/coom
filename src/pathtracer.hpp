@@ -57,11 +57,12 @@ inline Vec3 clampVec(Vec3 in, Vec3 lower, Vec3 upper) {
 
 struct Ray {
   Vec3 o, d; // origin and direction
+
   Ray(Vec3 origin, Vec3 dir) : o(origin), d(dir) { d = d / d.norm(); }
 };
 
 enum Refl_t { DIFF, SPEC, REFR };
-enum Obj_t { SPHERE, PLANE, PROJECTILE };
+enum Obj_t { SPHERE, PLANE, BOX, PROJECTILE };
 
 struct Hit {
   Vec3 point;
@@ -208,6 +209,61 @@ struct Sphere : public SceneObject {
   }
 };
 
+struct Box : public SceneObject {
+
+  Vec3 vmin, vmax;
+
+  Box(Vec3 vmin, Vec3 vmax, Vec3 pos, Material mat, std::string name)
+      : SceneObject(pos, mat, name), vmin(vmin), vmax(vmax) {
+    type = BOX;
+  }
+
+  Vec3 getNormal(Vec3 phit) { return phit; }
+
+  Hit intersect(const Ray &r) const {
+    Vec3 invdir;
+
+    float tmin, tmax, tymin, tymax, tzmin, tzmax;
+    double t;
+
+    invdir = r.d.cwiseInverse();
+
+    tmin  = invdir[0] < 0 ? (vmax[0] - r.o[0]) * invdir[0] : (vmin[0] - r.o[0]) * invdir[0];
+    tmax  = invdir[0] < 0 ? (vmin[0] - r.o[0]) * invdir[0] : (vmax[0] - r.o[0]) * invdir[0];
+    tymin = invdir[1] < 0 ? (vmax[1] - r.o[1]) * invdir[1] : (vmin[1] - r.o[1]) * invdir[1];
+    tymax = invdir[1] < 0 ? (vmin[1] - r.o[1]) * invdir[1] : (vmax[1] - r.o[1]) * invdir[1];
+
+    if ((tmin > tymax) || (tymin > tmax))
+      return Hit();
+    if (tymin > tmin)
+      tmin = tymin;
+    if (tymax < tmax)
+      tmax = tymax;
+
+    tzmin = invdir[2] < 0 ? (vmax[2] - r.o[2]) * invdir[2] : (vmin[2] - r.o[2]) * invdir[2];
+    tzmax = invdir[2] < 0 ? (vmin[2] - r.o[2]) * invdir[2] : (vmax[2] - r.o[2]) * invdir[2];
+
+    if ((tmin > tzmax) || (tzmin > tmax))
+      return Hit();
+    if (tzmin > tmin)
+      tmin = tzmin;
+    if (tzmax < tmax)
+      tmax = tzmax;
+    t = tmin;
+
+    if (t < 0) {
+      t = tmax;
+      if (t < 0) {
+        return Hit();
+      }
+    }
+
+    Vec3 phit    = r.o + r.d * t;
+    Vec3 hNormal = (phit - pos).normalized();
+    return Hit(phit, hNormal, t);
+  }
+};
+
 struct Plane : public SceneObject {
   Vec3 normal;
   Plane(Vec3 normal, Vec3 pos, Material mat, std::string name)
@@ -295,6 +351,11 @@ struct Scene3D {
         0.3, Vec3(2, 3, -1), Material(Vec3(1, 1, 1), Vec3(1, 1, 1), DIFF), "Ceiling light 2"));
     objects.emplace_back(std::make_unique<Sphere>(
         0.5, Vec3(0, 0.5, 4), Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .999, DIFF), "Red sphere"));
+    // Box
+    objects.emplace_back(std::make_unique<Box>(Vec3(-1, 0, -1), Vec3(1, 1, 1), Vec3(0, 0, 6),
+                                               Material(Vec3(0, 0, 0), Vec3(1, 0, 1) * .7, DIFF),
+                                               "Box"));
+
     // Right wall
     objects.emplace_back(std::make_unique<Plane>(Vec3(-1, 0, 0), Vec3(RIGHT_WALL, 0, 0),
                                                  Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .5, DIFF),
@@ -318,6 +379,7 @@ struct Scene3D {
     objects.emplace_back(std::make_unique<Plane>(Vec3(0, 0, -1), Vec3(0, 0, BACK_WALL),
                                                  Material(Vec3(0, 0, 0), Vec3(1, 0, 1) * .4, DIFF),
                                                  "Back wall"));
+
     spdlog::info("Scene created with {} elements", objects.size());
   }
 };
