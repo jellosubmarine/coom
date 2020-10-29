@@ -261,11 +261,11 @@ struct Scene3D {
     return result + radiance(response.ray, depth).cwiseProduct(response.transmittance);
   }
 
-  Vec3 radiance_loop(const Ray &r, int depth) {
+  Vec3 radiance_loop(const Ray &r) {
     std::stack<Vec3> emissivities;
     std::stack<Vec3> transmittances;
     Ray ray = r;
-#pragma omp parallel for schedule(dynamic)
+
     for (int i = 0; i < DEPTH_LIMIT; i++) {
       Hit h = sceneIntersect(ray);
       if (!h) {
