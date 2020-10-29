@@ -10,6 +10,7 @@
 #include <ostream>
 #include <random>
 #include <spdlog/spdlog.h>
+#include <stack>
 #include <vector>
 
 #define INF 1e20
@@ -17,7 +18,7 @@
 // Ideally option, not a hard define
 #define SAMPLES_PER_PIXEL 5
 #define AA_SAMPLES_PER_PIXEL 1
-#define DEPTH_LIMIT 3
+#define DEPTH_LIMIT 4
 
 // hardcoded rectangle room
 #define FRONT_WALL -5
@@ -265,6 +266,31 @@ struct Scene3D {
     }
     auto response = objects.at(h.id)->mat.bsdf(h, r);
     return result + radiance(response.ray, depth).cwiseProduct(response.transmittance);
+  }
+
+  Vec3 radiance_loop(const Ray &r) {
+    std::stack<Vec3> emissivities;
+    std::stack<Vec3> transmittances;
+    Ray ray = r;
+
+    for (int i = 0; i < DEPTH_LIMIT; i++) {
+      Hit h = sceneIntersect(ray);
+      if (!h) {
+        break;
+      }
+      emissivities.push(objects.at(h.id)->mat.emissivity);
+      auto response = objects.at(h.id)->mat.bsdf(h, ray);
+      ray           = response.ray;
+      transmittances.push(response.transmittance);
+    }
+
+    Vec3 result(0, 0, 0);
+    while (!emissivities.empty()) {
+      result = (result + emissivities.top()).cwiseProduct(transmittances.top());
+      emissivities.pop();
+      transmittances.pop();
+    }
+    return result;
   }
 
   void update(float dt) {

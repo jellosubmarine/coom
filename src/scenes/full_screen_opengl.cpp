@@ -138,7 +138,7 @@ void calculateMain(std::vector<Pixel> &buf, unsigned int width, unsigned int hei
         for (auto s = 0; s < SAMPLES_PER_PIXEL; ++s) {
           Ray ray = ctx.scene3d->cam.castRay(col + aa * (aaSampleScale / 2),
                                              row + aa * (aaSampleScale / 2));
-          rad     = rad + Radiance(ctx.scene3d->radiance(ray, 0));
+          rad     = rad + Radiance(ctx.scene3d->radiance_loop(ray));
         }
       }
       Vec3 color                   = rad.toSRGB() * aaSampleScale * 255;
