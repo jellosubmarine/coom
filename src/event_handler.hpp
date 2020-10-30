@@ -7,6 +7,7 @@
 #include <SFML/Window/Event.hpp>
 #include <imgui-SFML.h>
 
+#include "pathtracer.hpp"
 #include <imgui.h>
 
 #define LIN_SPEED 2
@@ -81,9 +82,9 @@ public:
   void handleJoystickEvent(sf::RenderWindow &window, sf::Event &event);
   void handleKeyboardMovement();
   void handleJoystickMovement();
-  void characterMovement(AppContext &ctx);
+  void characterMovement(AppContext &ctx, Scene3D &scene3d);
   void handleEvents(sf::RenderWindow &window);
-  void handleMovement(AppContext &ctx);
+  void handleMovement(AppContext &ctx, Scene3D &scene3d);
   void addDeadzone();
-  void handleShooting(AppContext &ctx);
+  void handleShooting(AppContext &ctx, Scene3D &scene3d);
 };

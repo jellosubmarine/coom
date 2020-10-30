@@ -2,8 +2,8 @@
 
 #include "../common.h"
 #include "../cuda_memory.hpp"
+#include "../pathtracer.hpp"
 #include <GL/glew.h>
-
 #include <SFML/Graphics/RenderWindow.hpp>
 
 class FullScreenOpenGLScene {
@@ -11,7 +11,7 @@ public:
   FullScreenOpenGLScene(sf::RenderWindow const &window);
   ~FullScreenOpenGLScene();
 
-  void update(AppContext &ctx);
+  void update(AppContext &ctx, Scene3D &scene3d);
   void render(sf::RenderWindow &window);
 
 private:

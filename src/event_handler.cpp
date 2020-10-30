@@ -153,7 +153,7 @@ void EventHandler::handleKeyboardMovement() {
   //   spdlog::info("forward {} turn {} strafe {}", forward, turn, strafe);
 }
 
-void EventHandler::characterMovement(AppContext &ctx) {
+void EventHandler::characterMovement(AppContext &ctx, Scene3D &scene3d) {
   float forward = (abs(key_forward) >= abs(joy_forward)) ? key_forward : joy_forward;
   float turn    = (abs(key_turn) >= abs(joy_turn)) ? key_turn : joy_turn;
   float strafe  = (abs(key_strafe) >= abs(joy_strafe)) ? key_strafe : joy_strafe;
@@ -162,13 +162,13 @@ void EventHandler::characterMovement(AppContext &ctx) {
     Vec3 lin{0, 0, 0};
     lin = lin + -forward * Vec3::UnitZ() * ctx.dtime * LIN_SPEED;
     lin = lin + strafe * Vec3::UnitX() * ctx.dtime * LIN_SPEED;
-    ctx.scene3d->cam.moveLinear(lin);
+    scene3d.cam.moveLinear(lin);
     if (status == sf::SoundSource::Paused || status == sf::SoundSource::Stopped) {
       ctx.sounds.movingSound.play();
     }
   }
   if (turn != 0) {
-    ctx.scene3d->cam.turn(turn * -1 * ctx.dtime * TURN_SPEED);
+    scene3d.cam.turn(turn * -1 * ctx.dtime * TURN_SPEED);
     if (status == sf::SoundSource::Paused || status == sf::SoundSource::Stopped) {
       ctx.sounds.movingSound.play();
     }
@@ -201,22 +201,24 @@ void EventHandler::handleEvents(sf::RenderWindow &window) {
   }
 }
 
-void EventHandler::handleMovement(AppContext &ctx) {
+void EventHandler::handleMovement(AppContext &ctx, Scene3D &scene3d) {
   handleKeyboardMovement();
   handleJoystickMovement();
-  characterMovement(ctx);
-  handleShooting(ctx);
+  characterMovement(ctx, scene3d);
+  handleShooting(ctx, scene3d);
 }
 
-void EventHandler::handleShooting(AppContext &ctx) {
+void EventHandler::handleShooting(AppContext &ctx, Scene3D &scene3d) {
   shooting.timeout += ctx.dtime;
   if (shooting.shotHappened) {
     shooting.shotHappened = false;
     if (shooting.timeout > SHOT_TIMEOUT) {
       shooting.timeout = 0;
-      ctx.scene3d->objects.emplace_back(
-          std::make_unique<Projectile>(ctx.scene3d->cam.t.translation() - Vec3::UnitY() * 0.2,
-                                       ctx.scene3d->cam.t.linear() * Vec3(0, 0, -1), ctx));
+      // scene3d.objects.emplace_back(Projectile(scene3d.cam.t.translation() - Vec3::UnitY() * 0.2,
+      //                                         scene3d.cam.t.linear() * Vec3(0, 0, -1), ctx));
+      scene3d.objects.emplace_back(Sphere(0.5, Vec3(-2, 0.5, -1),
+                                          Material(Vec3(0, 0, 0), Vec3(0, 1, 1) * .999, SPEC),
+                                          "Cyan sphere"));
       ctx.sounds.shootingSound.play();
       // std::vector<Vec3> path = ((std::unique_ptr<Projectile>)ctx.scene3d->objects.back()).path;
       // for (auto &i : path) {

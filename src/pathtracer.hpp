@@ -3,6 +3,7 @@
 #pragma warning(push, 0)
 #include <Eigen/Dense>
 #pragma warning(pop)
+#include "cuda_memory.hpp"
 #include "optick.h"
 #include <SFML/Audio.hpp>
 #include <iostream>
@@ -58,11 +59,11 @@ inline Vec3 clampVec(Vec3 in, Vec3 lower, Vec3 upper) {
 
 struct Ray {
   Vec3 o, d; // origin and direction
+  Ray(){};
   Ray(Vec3 origin, Vec3 dir) : o(origin), d(dir) { d = d / d.norm(); }
 };
 
 enum Refl_t { DIFF, SPEC, REFR };
-enum Obj_t { SPHERE, PLANE, PROJECTILE };
 
 struct Hit {
   Vec3 point;
@@ -86,6 +87,7 @@ struct Material {
   Vec3 emissivity;
   Vec3 baseColor;
   Refl_t type;
+  Material(){};
   Material(Vec3 emissivity, Vec3 baseColor, Refl_t type)
       : emissivity(emissivity), baseColor(baseColor), type(type) {}
   // Totally not copied code, needs improving
@@ -101,34 +103,37 @@ struct Material {
                               (baseColor / EIGEN_PI) *
                                   (h.normal.dot(direction) / UniformHemispherePdf()));
     } else if (type == SPEC) {
-      Vec3 direction = r.d - h.normal*2*h.normal.dot(r.d);
-      return MaterialResponse(Ray(h.point, direction), (baseColor / EIGEN_PI)*
+      Vec3 direction = r.d - h.normal * 2 * h.normal.dot(r.d);
+      return MaterialResponse(Ray(h.point, direction),
+                              (baseColor / EIGEN_PI) *
                                   (h.normal.dot(direction) / UniformHemispherePdf()));
-    }
-    else if(type==REFR){
-      double refractive_idx=1.52; //Using Test Refraction index for plate glass
-      double RO=(1.0-refractive_idx)/(1.0+refractive_idx);
-      RO=RO*RO;
-      Vec3 N = h.normal;
-      if(N.dot(r.d)>0){   // Determining if within medium
-        N = N*-1;
-        refractive_idx=1/refractive_idx;
+    } else if (type == REFR) {
+      double refractive_idx = 1.52; // Using Test Refraction index for plate glass
+      double RO             = (1.0 - refractive_idx) / (1.0 + refractive_idx);
+      RO                    = RO * RO;
+      Vec3 N                = h.normal;
+      if (N.dot(r.d) > 0) { // Determining if within medium
+        N              = N * -1;
+        refractive_idx = 1 / refractive_idx;
       }
-      refractive_idx=1/refractive_idx;
+      refractive_idx = 1 / refractive_idx;
       // Computing refraction using Snell's Law
-      double cos_theta1=(N.dot(r.d))*-1;  //Computing CosTheta1
-      double cos_theta2=1.0-refractive_idx*refractive_idx*(1.0-cos_theta1*cos_theta1);  //Computing CostTheta2
-      double Rprob = RO + (1.0 - RO)*pow(1.0-cos_theta1,5.0); //Schlick Approximation
-      if (cos_theta2>0 && random_double()>Rprob){ //Refraction
-        Vec3 direction=((r.d*refractive_idx)+(N*(refractive_idx*cos_theta1-sqrt(cos_theta2))));
-        return MaterialResponse(Ray(h.point, direction), (baseColor / EIGEN_PI)*
-                                  (h.normal.dot(direction) / UniformHemispherePdf()));
-      }else{  //Else do reflection
-        Vec3 direction = r.d - h.normal*2*h.normal.dot(r.d);
-        return MaterialResponse(Ray(h.point, direction), (baseColor / EIGEN_PI)*
-                                  (h.normal.dot(direction) / UniformHemispherePdf()));
+      double cos_theta1 = (N.dot(r.d)) * -1; // Computing CosTheta1
+      double cos_theta2 = 1.0 - refractive_idx * refractive_idx *
+                                    (1.0 - cos_theta1 * cos_theta1); // Computing CostTheta2
+      double Rprob = RO + (1.0 - RO) * pow(1.0 - cos_theta1, 5.0);   // Schlick Approximation
+      if (cos_theta2 > 0 && random_double() > Rprob) {               // Refraction
+        Vec3 direction =
+            ((r.d * refractive_idx) + (N * (refractive_idx * cos_theta1 - sqrt(cos_theta2))));
+        return MaterialResponse(Ray(h.point, direction),
+                                (baseColor / EIGEN_PI) *
+                                    (h.normal.dot(direction) / UniformHemispherePdf()));
+      } else { // Else do reflection
+        Vec3 direction = r.d - h.normal * 2 * h.normal.dot(r.d);
+        return MaterialResponse(Ray(h.point, direction),
+                                (baseColor / EIGEN_PI) *
+                                    (h.normal.dot(direction) / UniformHemispherePdf()));
       }
-      
     }
   }
 };
@@ -137,6 +142,7 @@ struct Radiance {
   Vec3 radiance;
   Radiance(double x) : radiance(Vec3(x, x, x)) {}
   Radiance(Vec3 radiance) : radiance(radiance) {}
+  Radiance(){};
   Radiance operator+(const Radiance &r1) { return Radiance(radiance + r1.radiance); }
   Vec3 toSRGB() {
     Vec3 srgb = Vec3(0, 0, 0);
@@ -153,7 +159,7 @@ struct Camera {
   double w;
   Eigen::Transform<double, 3, Eigen::Affine> t;
   Vec3 dir;
-
+  Camera(){};
   Camera(double fov, Vec3 position, double angle, double height, double width)
       : fov(fov), h(height), w(width) {
     t.setIdentity();
@@ -185,34 +191,25 @@ struct Camera {
   }
 };
 
-struct AbstractObject {
-  virtual ~AbstractObject() = default;
-};
-
-// Objects
-template <class T> struct SceneObject : public AbstractObject {
-  Vec3 pos; // position, emission and color
+struct Transformable {
+  Vec3 pos;
   Material mat;
-  Obj_t type;
   std::string name = "";
-  bool destroyed   = false; // If object should be destroyed now
-  SceneObject(Vec3 pos, Material mat, std::string name) : pos(pos), mat(mat), name(name) {
+  bool destroyed   = false;
+  __host__ __device__ Transformable(){};
+  __host__ __device__ Transformable(Vec3 pos, Material mat, std::string name)
+      : pos(pos), mat(mat), name(name) {
     spdlog::info("{} created", name);
   }
-  Hit intersect(const Ray &r) const { static_cast<T *>(this)->intersect(); }
-  void update(float dt) {}
-  ~SceneObject() { spdlog::info("{} destroyed", name); }
 };
 
-struct Sphere : public SceneObject<Sphere> {
-  double rad; // radius
+struct Sphere : public Transformable {
+  double rad = 0.3; // radius
 
   Sphere(double rad, Vec3 pos, Material mat, std::string name)
-      : SceneObject(pos, mat, name), rad(rad) {
-    type = SPHERE;
-  }
+      : Transformable(pos, mat, name), rad(rad) {}
 
-  Hit sphereIntersect(const Ray &r) const {
+  __host__ __device__ Hit intersect(const Ray &r) const {
     Vec3 e_  = pos - r.o;
     double a = e_.dot(r.d);
 
@@ -237,15 +234,14 @@ struct Sphere : public SceneObject<Sphere> {
   }
 };
 
-struct Plane : public SceneObject<Plane> {
+struct Plane : public Transformable {
   Vec3 normal;
   Plane(Vec3 normal, Vec3 pos, Material mat, std::string name)
-      : SceneObject(pos, mat, name), normal(normal) {
-    type = PLANE;
+      : Transformable(pos, mat, name), normal(normal) {
     normal.normalize();
   }
 
-  Hit intersect(const Ray &r) const {
+  __host__ __device__ Hit intersect(const Ray &r) const {
     double eps = 1e-4;
 
     if (std::abs(r.d.dot(normal)) <= eps) { // ray misses plane
@@ -263,11 +259,116 @@ struct Plane : public SceneObject<Plane> {
   }
 };
 
-struct Scene3D {
-  std::vector<std::unique_ptr<AbstractObject>> objects;
-  Camera cam;
+struct Scene3D;
 
-  Scene3D(Camera cam) : cam(cam) { generateScene(); }
+struct Projectile : public Sphere {
+  Vec3 direction;
+  std::vector<Ray> path;
+  int pathIterator        = 0;
+  const float speed       = 4;
+  int bouncesLeft         = 4;
+  const double bulletSize = 0.3;
+  Vec3 origin;
+  double targetDistance = 0;
+  AppContext *ctx;
+  sf::Sound flyingSound;
+  sf::Sound bouncingSound;
+
+  Projectile(Vec3 position, Vec3 direction, AppContext &ctx, Scene3D &scene3d)
+      : Sphere(1, position, Material(Vec3(1, 1, 0), Vec3(1, 1, 0) * 1.0, DIFF), "Bullet"),
+        direction(direction), ctx(&ctx) {
+    origin = position;
+    direction.normalize();
+    rad = bulletSize;
+    pos += direction * 0.2;
+    mat.emissivity =
+        Vec3(0.5 + 0.5 * random_double(), 0.5 + 0.5 * random_double(), 0.5 + 0.5 * random_double());
+    createPath(scene3d);
+    targetDistance = getDistance(origin, path.at(pathIterator).o);
+    bouncingSound.setBuffer(ctx.sounds.bouncingSoundBuffer);
+    bouncingSound.setMinDistance(2.f);
+    bouncingSound.setAttenuation(0.8f);
+    flyingSound.setBuffer(ctx.sounds.flyingSoundBuffer);
+    flyingSound.setMinDistance(2.f);
+    flyingSound.setAttenuation(0.8f);
+    flyingSound.setLoop(true);
+    flyingSound.play();
+  }
+  void update(float dtime) {
+    pos += direction * speed * dtime;
+    bouncingSound.setPosition(pos.x(), pos.y(), pos.z());
+    flyingSound.setPosition(pos.x(), pos.y(), pos.z());
+
+    if (getDistance(origin, pos) > targetDistance) {
+
+      direction = path.at(pathIterator).d;
+      pos       = path.at(pathIterator).o;
+      origin    = pos;
+      pathIterator++;
+      if (pathIterator >= bouncesLeft) {
+        pathIterator = 0;
+        destroyed    = true;
+        flyingSound.stop();
+      } else {
+        bouncingSound.play();
+      }
+      targetDistance = getDistance(origin, path.at(pathIterator).o);
+    }
+  }
+
+  void createPath(Scene3D &scene3d);
+
+  Ray getNextBounce(const Ray &r, Scene3D &scene3d);
+};
+
+struct Object : public Transformable {
+  enum Tag { SPHERE, PLANE, PROJECTILE };
+  Tag t;
+  union {
+    Sphere sphere;
+    Plane plane;
+    Projectile projectile;
+  };
+  template <typename T> Object(T &&obj);
+  Object(Object const &obj) = default;
+  ~Object(){};
+  // Object(Object &obj)       = default;
+  __host__ __device__ Hit intersect(const Ray &r) {
+    switch (t) {
+    case Tag::SPHERE:
+      return sphere.intersect(r);
+    case Tag::PLANE:
+      return plane.intersect(r);
+    case Tag::PROJECTILE:
+      return projectile.intersect(r);
+    default:
+      abort();
+    }
+  }
+};
+
+template <>
+inline Object::Object(Sphere &&obj) : t(Tag::SPHERE), sphere(std::forward<Sphere>(obj)) {}
+template <> inline Object::Object(Plane &&obj) : t(Tag::PLANE), plane(std::forward<Plane>(obj)) {}
+
+template <>
+inline Object::Object(Projectile &&obj)
+    : t(Tag::PROJECTILE), projectile(std::forward<Projectile>(obj)) {}
+
+using ObjectVector = std::vector<Object>;
+using CudaObjects  = cuda::owning_ptr<Object>;
+inline void vectorToCuda(ObjectVector &host, CudaObjects &device) {
+  device.allocateManaged(host.size());
+  CUDA_CALL(cudaMemcpy(device.get(), host.data(), device.sizeBytes(), cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaDeviceSynchronize());
+}
+
+struct Scene3D {
+  ObjectVector objects;
+
+  Camera cam;
+  Scene3D(){};
+  Scene3D(Camera cam) : cam(cam) { generateScene(); };
 
   Hit sceneIntersect(const Ray &r) {
     Hit h;
@@ -275,7 +376,7 @@ struct Scene3D {
     for (auto i = 0; i < objects.size(); ++i) {
       Hit d;
 
-      d = objects.at(i)->intersect(r);
+      d = objects.at(i).intersect(r);
 
       if (d < h) {
         h    = d;
@@ -291,11 +392,11 @@ struct Scene3D {
     if (!h) {
       return Vec3(0, 0, 0);
     }
-    Vec3 result = objects.at(h.id)->mat.emissivity;
+    Vec3 result = objects.at(h.id).mat.emissivity;
     if (++depth > DEPTH_LIMIT) {
       return result;
     }
-    auto response = objects.at(h.id)->mat.bsdf(h, r);
+    auto response = objects.at(h.id).mat.bsdf(h, r);
     return result + radiance(response.ray, depth).cwiseProduct(response.transmittance);
   }
 
@@ -309,8 +410,8 @@ struct Scene3D {
       if (!h) {
         break;
       }
-      emissivities.push(objects.at(h.id)->mat.emissivity);
-      auto response = objects.at(h.id)->mat.bsdf(h, ray);
+      emissivities.push(objects.at(h.id).mat.emissivity);
+      auto response = objects.at(h.id).mat.bsdf(h, ray);
       ray           = response.ray;
       transmittances.push(response.transmittance);
     }
@@ -337,44 +438,39 @@ struct Scene3D {
 
   void generateScene() {
     objects.clear();
-    objects.emplace_back(std::make_unique<Sphere>(
-        0.5, Vec3(-2, 0.5, -1), Material(Vec3(0, 0, 0), Vec3(0, 1, 1) * .999, SPEC),
-        "Cyan sphere"));
-    objects.emplace_back(std::make_unique<Sphere>(
-        0.3, Vec3(0, 0.3, -2), Material(Vec3(0, 0, 0), Vec3(1, 0, 1) * .999, DIFF),
-        "Purple sphere"));
-    objects.emplace_back(std::make_unique<Sphere>(
-        0.4, Vec3(2, 0.4, -1.5), Material(Vec3(0, 0, 0), Vec3(1, 1, 0) * .999, DIFF),
-        "Yellow sphere"));
-    objects.emplace_back(std::make_unique<Sphere>(
-        0.3, Vec3(-2, 3, -1), Material(Vec3(1, 1, 1), Vec3(1, 1, 1), DIFF), "Ceiling light"));
-    objects.emplace_back(std::make_unique<Sphere>(
-        0.3, Vec3(2, 3, -1), Material(Vec3(1, 1, 1), Vec3(1, 1, 1), DIFF), "Ceiling light 2"));
-    objects.emplace_back(std::make_unique<Sphere>(
-        0.5, Vec3(0, 0.5, 4), Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .999, REFR), "Red sphere"));
+    objects.emplace_back(Sphere(0.5, Vec3(-2, 0.5, -1),
+                                Material(Vec3(0, 0, 0), Vec3(0, 1, 1) * .999, SPEC),
+                                "Cyan sphere"));
+    objects.emplace_back(Sphere(0.3, Vec3(0, 0.3, -2),
+                                Material(Vec3(0, 0, 0), Vec3(1, 0, 1) * .999, DIFF),
+                                "Purple sphere"));
+    objects.emplace_back(Sphere(0.4, Vec3(2, 0.4, -1.5),
+                                Material(Vec3(0, 0, 0), Vec3(1, 1, 0) * .999, DIFF),
+                                "Yellow sphere"));
+    objects.emplace_back(Sphere(0.3, Vec3(-2, 3, -1), Material(Vec3(1, 1, 1), Vec3(1, 1, 1), DIFF),
+                                "Ceiling light"));
+    objects.emplace_back(Sphere(0.3, Vec3(2, 3, -1), Material(Vec3(1, 1, 1), Vec3(1, 1, 1), DIFF),
+                                "Ceiling light 2"));
+    objects.emplace_back(Sphere(0.5, Vec3(0, 0.5, 4),
+                                Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .999, REFR), "Red sphere"));
     // Right wall
-    objects.emplace_back(std::make_unique<Plane>(Vec3(-1, 0, 0), Vec3(RIGHT_WALL, 0, 0),
-                                                 Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .5, DIFF),
-                                                 "Right wall"));
+    objects.emplace_back(Plane(Vec3(-1, 0, 0), Vec3(RIGHT_WALL, 0, 0),
+                               Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .5, DIFF), "Right wall"));
     // Left wall
-    objects.emplace_back(std::make_unique<Plane>(Vec3(1, 0, 0), Vec3(LEFT_WALL, 0, 0),
-                                                 Material(Vec3(0, 0, 0), Vec3(0, 0, 1) * .5, DIFF),
-                                                 "Left wall"));
+    objects.emplace_back(Plane(Vec3(1, 0, 0), Vec3(LEFT_WALL, 0, 0),
+                               Material(Vec3(0, 0, 0), Vec3(0, 0, 1) * .5, DIFF), "Left wall"));
     // Floor
-    objects.emplace_back(std::make_unique<Plane>(
-        Vec3(0, 1, 0), Vec3(0, 0, 0), Material(Vec3(0, 0, 0), Vec3(1, 1, 1) * .5, DIFF), "Floor"));
+    objects.emplace_back(Plane(Vec3(0, 1, 0), Vec3(0, 0, 0),
+                               Material(Vec3(0, 0, 0), Vec3(1, 1, 1) * .5, DIFF), "Floor"));
     // Ceiling
-    objects.emplace_back(std::make_unique<Plane>(Vec3(0, -1, 0), Vec3(0, 3, 0),
-                                                 Material(Vec3(0, 0, 0), Vec3(1, 1, 1) * .9, DIFF),
-                                                 "Ceiling"));
+    objects.emplace_back(Plane(Vec3(0, -1, 0), Vec3(0, 3, 0),
+                               Material(Vec3(0, 0, 0), Vec3(1, 1, 1) * .9, DIFF), "Ceiling"));
     // Front wall
-    objects.emplace_back(std::make_unique<Plane>(Vec3(0, 0, 1), Vec3(0, 0, FRONT_WALL),
-                                                 Material(Vec3(0, 0, 0), Vec3(1, 0, 1) * .4, DIFF),
-                                                 "Front wall"));
+    objects.emplace_back(Plane(Vec3(0, 0, 1), Vec3(0, 0, FRONT_WALL),
+                               Material(Vec3(0, 0, 0), Vec3(1, 0, 1) * .4, DIFF), "Front wall"));
     // Back wall
-    objects.emplace_back(std::make_unique<Plane>(Vec3(0, 0, -1), Vec3(0, 0, BACK_WALL),
-                                                 Material(Vec3(0, 0, 0), Vec3(1, 0, 1) * .4, DIFF),
-                                                 "Back wall"));
+    objects.emplace_back(Plane(Vec3(0, 0, -1), Vec3(0, 0, BACK_WALL),
+                               Material(Vec3(0, 0, 0), Vec3(1, 0, 1) * .4, DIFF), "Back wall"));
     spdlog::info("Scene created with {} elements", objects.size());
   }
 };

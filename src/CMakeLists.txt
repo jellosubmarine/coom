@@ -3,6 +3,7 @@ add_executable(sfml_cuda
     options.cpp
     event_handler.cpp
     scenes/full_screen_opengl.cpp
+    projectile.cpp
     # scenes/full_screen_opengl.cu
 )
 #enable profiler

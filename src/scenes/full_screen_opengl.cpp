@@ -9,7 +9,7 @@
 #include <math.h>
 
 void calculateMain(std::vector<Pixel> &buf, unsigned int width, unsigned int height,
-                   AppContext &ctx);
+                   AppContext &ctx, Scene3D &scene3d);
 
 FullScreenOpenGLScene::FullScreenOpenGLScene(sf::RenderWindow const &window) {
   glewInit();
@@ -47,7 +47,7 @@ FullScreenOpenGLScene::FullScreenOpenGLScene(sf::RenderWindow const &window) {
 
 FullScreenOpenGLScene::~FullScreenOpenGLScene() { glDeleteBuffers(1, &glVBO_); }
 
-void FullScreenOpenGLScene::update(AppContext &ctx) {
+void FullScreenOpenGLScene::update(AppContext &ctx, Scene3D &scene3d) {
 
   OPTICK_EVENT();
   // CUDA_CALL(cudaGraphicsMapResources(1, &cudaVBO_, 0));
@@ -59,7 +59,7 @@ void FullScreenOpenGLScene::update(AppContext &ctx) {
 
   // Add pitch support by rotating cx and cy by pitch
   if (ctx.enablePT) {
-    calculateMain(screenBuffer_, width, height, ctx);
+    calculateMain(screenBuffer_, width, height, ctx, scene3d);
   } else {
 #pragma omp parallel for schedule(dynamic)
     for (int row = 0; row < (int)height; ++row) {
@@ -67,10 +67,10 @@ void FullScreenOpenGLScene::update(AppContext &ctx) {
         auto idx            = row * width + col;
         Vec3 color          = Vec3();
         unsigned char alpha = 255;
-        Ray camStep         = ctx.scene3d->cam.castRay(col, row);
-        Hit hit             = ctx.scene3d->sceneIntersect(camStep);
+        Ray camStep         = scene3d.cam.castRay(col, row);
+        Hit hit             = scene3d.sceneIntersect(camStep);
         if (hit) {
-          color = ctx.scene3d->objects.at(hit.id)->mat.baseColor * 255;
+          color = scene3d.objects.at(hit.id).mat.baseColor * 255;
         }
         screenBuffer_[idx].x                   = (float)col;
         screenBuffer_[idx].y                   = (float)row;
@@ -124,7 +124,7 @@ void FullScreenOpenGLScene::render(sf::RenderWindow &window) {
 }
 
 void calculateMain(std::vector<Pixel> &buf, unsigned int width, unsigned int height,
-                   AppContext &ctx) {
+                   AppContext &ctx, Scene3D &scene3d) {
   auto aaSampleScale = 1.0 / AA_SAMPLES_PER_PIXEL;
 #pragma omp parallel for schedule(dynamic)
   for (int row = 0; row < (int)height; ++row) {
@@ -136,9 +136,9 @@ void calculateMain(std::vector<Pixel> &buf, unsigned int width, unsigned int hei
       // Stupid antialiasing, because random took too much fps
       for (auto aa = 0; aa < AA_SAMPLES_PER_PIXEL; ++aa) {
         for (auto s = 0; s < SAMPLES_PER_PIXEL; ++s) {
-          Ray ray = ctx.scene3d->cam.castRay(col + aa * (aaSampleScale / 2),
-                                             row + aa * (aaSampleScale / 2));
-          rad     = rad + Radiance(ctx.scene3d->radiance_loop(ray));
+          Ray ray =
+              scene3d.cam.castRay(col + aa * (aaSampleScale / 2), row + aa * (aaSampleScale / 2));
+          rad = rad + Radiance(scene3d.radiance_loop(ray));
         }
       }
       Vec3 color                   = rad.toSRGB() * aaSampleScale * 255;

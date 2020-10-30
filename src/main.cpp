@@ -39,8 +39,7 @@ int main(int argc, const char **argv) {
   AppContext ctx;
   sf::Clock deltaClock;
 
-  ctx.scene3d = std::make_shared<Scene3D>(
-      Camera(1.4, Vec3(0, 1.5, 5), 0, window.getSize().x, window.getSize().y));
+  Scene3D scene3d(Camera(1.4, Vec3(0, 1.5, 5), 0, window.getSize().x, window.getSize().y));
 
   float musicVolume = 15.f;
   loadSounds(ctx);
@@ -53,7 +52,7 @@ int main(int argc, const char **argv) {
 
     ImGui::SFML::Update(window, deltaClock.restart());
 
-    scene.update(ctx);
+    scene.update(ctx, scene3d);
 
     // GUI
     ImGui::Begin("FPS");
@@ -67,10 +66,10 @@ int main(int argc, const char **argv) {
     // END GUI
 
     event_handler.handleEvents(window);
-    event_handler.handleMovement(ctx);
+    event_handler.handleMovement(ctx, scene3d);
 
     // Update movements
-    ctx.scene3d->update(ctx.dtime);
+    scene3d.update(ctx.dtime);
     // END update movements
 
     window.clear();
