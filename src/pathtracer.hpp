@@ -90,6 +90,7 @@ struct Material {
   Material(){};
   Material(Vec3 emissivity, Vec3 baseColor, Refl_t type)
       : emissivity(emissivity), baseColor(baseColor), type(type) {}
+  Material(Material const &mat) = default;
   // Totally not copied code, needs improving
   MaterialResponse bsdf(Hit const &h, const Ray &r) {
     if (type == DIFF) {
@@ -194,11 +195,11 @@ struct Camera {
 struct Transformable {
   Vec3 pos;
   Material mat;
-  std::string name = "";
-  bool destroyed   = false;
+  std::string name                      = "";
+  bool destroyed                        = false;
+  Transformable(Transformable const &t) = default;
   __host__ __device__ Transformable(){};
-  __host__ __device__ Transformable(Vec3 pos, Material mat, std::string name)
-      : pos(pos), mat(mat), name(name) {
+  __host__ __device__ Transformable(Vec3 pos, Material mat, std::string name) : pos(pos), mat(mat) {
     spdlog::info("{} created", name);
   }
 };
@@ -206,6 +207,8 @@ struct Transformable {
 struct Sphere : public Transformable {
   double rad = 0.3; // radius
 
+  Sphere(){};
+  Sphere(Sphere const &o) = default;
   Sphere(double rad, Vec3 pos, Material mat, std::string name)
       : Transformable(pos, mat, name), rad(rad) {}
 
@@ -236,6 +239,7 @@ struct Sphere : public Transformable {
 
 struct Plane : public Transformable {
   Vec3 normal;
+  Plane(){};
   Plane(Vec3 normal, Vec3 pos, Material mat, std::string name)
       : Transformable(pos, mat, name), normal(normal) {
     normal.normalize();
@@ -264,19 +268,18 @@ struct Scene3D;
 struct Projectile : public Sphere {
   Vec3 direction;
   std::vector<Ray> path;
-  int pathIterator        = 0;
-  const float speed       = 4;
-  int bouncesLeft         = 4;
-  const double bulletSize = 0.3;
+  int pathIterator  = 0;
+  float speed       = 4;
+  int bouncesLeft   = 4;
+  double bulletSize = 0.3;
   Vec3 origin;
   double targetDistance = 0;
-  AppContext *ctx;
   sf::Sound flyingSound;
   sf::Sound bouncingSound;
 
   Projectile(Vec3 position, Vec3 direction, AppContext &ctx, Scene3D &scene3d)
       : Sphere(1, position, Material(Vec3(1, 1, 0), Vec3(1, 1, 0) * 1.0, DIFF), "Bullet"),
-        direction(direction), ctx(&ctx) {
+        direction(direction) {
     origin = position;
     direction.normalize();
     rad = bulletSize;
@@ -294,6 +297,20 @@ struct Projectile : public Sphere {
     flyingSound.setLoop(true);
     flyingSound.play();
   }
+  Projectile(Projectile const &p) {
+    direction    = p.direction;
+    path         = p.path;
+    pathIterator = p.pathIterator;
+    speed        = p.speed;
+    bouncesLeft  = p.bouncesLeft;
+
+    bulletSize     = p.bulletSize;
+    origin         = p.origin;
+    targetDistance = p.targetDistance;
+    flyingSound    = p.flyingSound;
+    bouncingSound  = p.bouncingSound;
+  }
+
   void update(float dtime) {
     pos += direction * speed * dtime;
     bouncingSound.setPosition(pos.x(), pos.y(), pos.z());
@@ -329,10 +346,24 @@ struct Object : public Transformable {
     Plane plane;
     Projectile projectile;
   };
-  template <typename T> Object(T &&obj);
-  Object(Object const &obj) = default;
+  Object(Sphere &&obj) : t(Tag::SPHERE), sphere(std::forward<Sphere>(obj)){};
+  Object(Plane &&obj) : t(Tag::PLANE), plane(std::forward<Plane>(obj)){};
+  Object(Projectile &&obj) : t(Tag::PROJECTILE), projectile(std::forward<Projectile>(obj)){};
+  Object(Object const &obj) : t(obj.t) {
+    switch (t) {
+    case Tag::SPHERE:
+      sphere = obj.sphere;
+      break;
+    case Tag::PLANE:
+      plane = obj.plane;
+      break;
+    case Tag::PROJECTILE:
+      projectile = obj.projectile;
+      break;
+    }
+  };
   ~Object(){};
-  // Object(Object &obj)       = default;
+  // Object(Object &obj) = default;
   __host__ __device__ Hit intersect(const Ray &r) {
     switch (t) {
     case Tag::SPHERE:
@@ -347,21 +378,13 @@ struct Object : public Transformable {
   }
 };
 
-template <>
-inline Object::Object(Sphere &&obj) : t(Tag::SPHERE), sphere(std::forward<Sphere>(obj)) {}
-template <> inline Object::Object(Plane &&obj) : t(Tag::PLANE), plane(std::forward<Plane>(obj)) {}
-
-template <>
-inline Object::Object(Projectile &&obj)
-    : t(Tag::PROJECTILE), projectile(std::forward<Projectile>(obj)) {}
-
 using ObjectVector = std::vector<Object>;
 using CudaObjects  = cuda::owning_ptr<Object>;
-inline void vectorToCuda(ObjectVector &host, CudaObjects &device) {
-  device.allocateManaged(host.size());
-  CUDA_CALL(cudaMemcpy(device.get(), host.data(), device.sizeBytes(), cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaDeviceSynchronize());
-}
+// inline void vectorToCuda(ObjectVector &host, CudaObjects &device) {
+//   device.allocateManaged(host.size());
+//   CUDA_CALL(cudaMemcpy(device.get(), host.data(), device.sizeBytes(), cudaMemcpyHostToDevice));
+//   CUDA_CALL(cudaDeviceSynchronize());
+// }
 
 struct Scene3D {
   ObjectVector objects;

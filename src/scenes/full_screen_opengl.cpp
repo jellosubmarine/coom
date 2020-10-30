@@ -61,7 +61,7 @@ void FullScreenOpenGLScene::update(AppContext &ctx, Scene3D &scene3d) {
   if (ctx.enablePT) {
     calculateMain(screenBuffer_, width, height, ctx, scene3d);
   } else {
-#pragma omp parallel for schedule(dynamic)
+    //#pragma omp parallel for schedule(dynamic)
     for (int row = 0; row < (int)height; ++row) {
       for (int col = 0; col < (int)width; ++col) {
         auto idx            = row * width + col;
