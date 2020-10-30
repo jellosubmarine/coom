@@ -16,8 +16,8 @@
 #define INF 1e20
 #define EPSILON 1e-4
 // Ideally option, not a hard define
-#define SAMPLES_PER_PIXEL 3
-#define AA_SAMPLES_PER_PIXEL 3
+#define SAMPLES_PER_PIXEL 5
+#define AA_SAMPLES_PER_PIXEL 2
 #define DEPTH_LIMIT 2
 
 // hardcoded rectangle room

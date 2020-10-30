@@ -59,7 +59,7 @@ struct Projectile : public Sphere {
   Vec3 direction;
   std::vector<Ray> path;
   int pathIterator        = 0;
-  const float speed       = 4;
+  const float speed       = 1;
   int bouncesLeft         = 4;
   const double bulletSize = 0.3;
   std::shared_ptr<Scene3D> scene3d;
