@@ -10,6 +10,7 @@
 #include <ostream>
 #include <random>
 #include <spdlog/spdlog.h>
+#include <stack>
 #include <vector>
 
 #define INF 1e20
@@ -17,7 +18,7 @@
 // Ideally option, not a hard define
 #define SAMPLES_PER_PIXEL 5
 #define AA_SAMPLES_PER_PIXEL 1
-#define DEPTH_LIMIT 3
+#define DEPTH_LIMIT 4
 
 // hardcoded rectangle room
 #define FRONT_WALL -5
@@ -88,16 +89,47 @@ struct Material {
   Material(Vec3 emissivity, Vec3 baseColor, Refl_t type)
       : emissivity(emissivity), baseColor(baseColor), type(type) {}
   // Totally not copied code, needs improving
-  MaterialResponse bsdf(Hit const &h) {
-    Vec3 hemi      = UniformSampleHemisphere(random_double(), random_double());
-    Vec3 w         = h.normal;
-    Vec3 u         = (std::abs(w.x()) > .1f ? Vec3::UnitY() : Vec3::UnitX()).cross(w).normalized();
-    Vec3 v         = w.cross(u);
-    Vec3 direction = (u * hemi.x() + v * hemi.y() + w * hemi.z()).normalized();
-    Vec3 origin    = h.point + h.normal * EPSILON;
-    return MaterialResponse(Ray(origin, direction),
-                            (baseColor / EIGEN_PI) *
-                                (h.normal.dot(direction) / UniformHemispherePdf()));
+  MaterialResponse bsdf(Hit const &h, const Ray &r) {
+    if (type == DIFF) {
+      Vec3 hemi = UniformSampleHemisphere(random_double(), random_double());
+      Vec3 w    = h.normal;
+      Vec3 u    = (std::abs(w.x()) > .1f ? Vec3::UnitY() : Vec3::UnitX()).cross(w).normalized();
+      Vec3 v    = w.cross(u);
+      Vec3 direction = (u * hemi.x() + v * hemi.y() + w * hemi.z()).normalized();
+      Vec3 origin    = h.point + h.normal * EPSILON;
+      return MaterialResponse(Ray(origin, direction),
+                              (baseColor / EIGEN_PI) *
+                                  (h.normal.dot(direction) / UniformHemispherePdf()));
+    } else if (type == SPEC) {
+      Vec3 direction = r.d - h.normal*2*h.normal.dot(r.d);
+      return MaterialResponse(Ray(h.point, direction), (baseColor / EIGEN_PI)*
+                                  (h.normal.dot(direction) / UniformHemispherePdf()));
+    }
+    else if(type==REFR){
+      double refractive_idx=1.52; //Using Test Refraction index for plate glass
+      double RO=(1.0-refractive_idx)/(1.0+refractive_idx);
+      RO=RO*RO;
+      Vec3 N = h.normal;
+      if(N.dot(r.d)>0){   // Determining if within medium
+        N = N*-1;
+        refractive_idx=1/refractive_idx;
+      }
+      refractive_idx=1/refractive_idx;
+      // Computing refraction using Snell's Law
+      double cos_theta1=(N.dot(r.d))*-1;  //Computing CosTheta1
+      double cos_theta2=1.0-refractive_idx*refractive_idx*(1.0-cos_theta1*cos_theta1);  //Computing CostTheta2
+      double Rprob = RO + (1.0 - RO)*pow(1.0-cos_theta1,5.0); //Schlick Approximation
+      if (cos_theta2>0 && random_double()>Rprob){ //Refraction
+        Vec3 direction=((r.d*refractive_idx)+(N*(refractive_idx*cos_theta1-sqrt(cos_theta2))));
+        return MaterialResponse(Ray(h.point, direction), (baseColor / EIGEN_PI)*
+                                  (h.normal.dot(direction) / UniformHemispherePdf()));
+      }else{  //Else do reflection
+        Vec3 direction = r.d - h.normal*2*h.normal.dot(r.d);
+        return MaterialResponse(Ray(h.point, direction), (baseColor / EIGEN_PI)*
+                                  (h.normal.dot(direction) / UniformHemispherePdf()));
+      }
+      
+    }
   }
 };
 
@@ -263,8 +295,33 @@ struct Scene3D {
     if (++depth > DEPTH_LIMIT) {
       return result;
     }
-    auto response = objects.at(h.id)->mat.bsdf(h);
+    auto response = objects.at(h.id)->mat.bsdf(h, r);
     return result + radiance(response.ray, depth).cwiseProduct(response.transmittance);
+  }
+
+  Vec3 radiance_loop(const Ray &r) {
+    std::stack<Vec3> emissivities;
+    std::stack<Vec3> transmittances;
+    Ray ray = r;
+
+    for (int i = 0; i < DEPTH_LIMIT; i++) {
+      Hit h = sceneIntersect(ray);
+      if (!h) {
+        break;
+      }
+      emissivities.push(objects.at(h.id)->mat.emissivity);
+      auto response = objects.at(h.id)->mat.bsdf(h, ray);
+      ray           = response.ray;
+      transmittances.push(response.transmittance);
+    }
+
+    Vec3 result(0, 0, 0);
+    while (!emissivities.empty()) {
+      result = (result + emissivities.top()).cwiseProduct(transmittances.top());
+      emissivities.pop();
+      transmittances.pop();
+    }
+    return result;
   }
 
   void update(float dt) {
@@ -281,7 +338,7 @@ struct Scene3D {
   void generateScene() {
     objects.clear();
     objects.emplace_back(std::make_unique<Sphere>(
-        0.5, Vec3(-2, 0.5, -1), Material(Vec3(0, 0, 0), Vec3(0, 1, 1) * .999, DIFF),
+        0.5, Vec3(-2, 0.5, -1), Material(Vec3(0, 0, 0), Vec3(0, 1, 1) * .999, SPEC),
         "Cyan sphere"));
     objects.emplace_back(std::make_unique<Sphere>(
         0.3, Vec3(0, 0.3, -2), Material(Vec3(0, 0, 0), Vec3(1, 0, 1) * .999, DIFF),
@@ -294,7 +351,7 @@ struct Scene3D {
     objects.emplace_back(std::make_unique<Sphere>(
         0.3, Vec3(2, 3, -1), Material(Vec3(1, 1, 1), Vec3(1, 1, 1), DIFF), "Ceiling light 2"));
     objects.emplace_back(std::make_unique<Sphere>(
-        0.5, Vec3(0, 0.5, 4), Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .999, DIFF), "Red sphere"));
+        0.5, Vec3(0, 0.5, 4), Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .999, REFR), "Red sphere"));
     // Right wall
     objects.emplace_back(std::make_unique<Plane>(Vec3(-1, 0, 0), Vec3(RIGHT_WALL, 0, 0),
                                                  Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .5, DIFF),
