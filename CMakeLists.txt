@@ -13,9 +13,8 @@ endif()
 
 
 
-
-
 find_package(CUDA REQUIRED)
+
 
 include(CheckLanguage)
 check_language(CUDA)

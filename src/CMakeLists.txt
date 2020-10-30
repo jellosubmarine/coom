@@ -1,10 +1,26 @@
 add_executable(sfml_cuda
     main.cpp
+    # OptixDenoiser.cpp
     options.cpp
     event_handler.cpp
     scenes/full_screen_opengl.cpp
+
     # scenes/full_screen_opengl.cu
 )
+#Optix
+
+set(OptiX_INSTALL_DIR "C:/ProgramData/NVIDIA\ Corporation/OptiX\ SDK\ 7.2.0/SDK" CACHE PATH "Path to OptiX installed location.")
+
+# Search for the OptiX libraries and include files.
+#find_package(OptiX REQUIRED)
+
+# Add the path to the OptiX headers to our include paths.
+include_directories(
+  "C:/ProgramData/NVIDIA\ Corporation/OptiX\ SDK\ 7.2.0/include"
+  "${OptiX_INSTALL_DIR}/cuda"
+  )
+
+
 #enable profiler
 set(ENABLE_OPTICK OFF)
 
@@ -44,6 +60,8 @@ set_target_properties(sfml_cuda PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
 target_include_directories(sfml_cuda SYSTEM PUBLIC ${CUDA_INCLUDE_DIRS})
 target_link_libraries(sfml_cuda PRIVATE project_options project_warnings ${CUDA_LIBRARIES})
+
+target_compile_options(sfml_cuda PUBLIC /Zc:twoPhase-) 
 
 target_link_libraries_system(
   sfml_cuda PRIVATE  

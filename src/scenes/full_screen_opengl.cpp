@@ -1,5 +1,5 @@
 #include "full_screen_opengl.h"
-
+//#include <OptiXDenoiser.h>
 #include "../pathtracer.hpp"
 #pragma warning(push, 0)
 #include <Eigen/Dense>
@@ -8,8 +8,10 @@
 #include <cuda_gl_interop.h>
 #include <math.h>
 
-void calculateMain(std::vector<Pixel> &buf, unsigned int width, unsigned int height,
-                   AppContext &ctx);
+
+
+
+
 
 FullScreenOpenGLScene::FullScreenOpenGLScene(sf::RenderWindow const &window) {
   glewInit();
@@ -29,20 +31,25 @@ FullScreenOpenGLScene::FullScreenOpenGLScene(sf::RenderWindow const &window) {
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
   // cudaGraphicsGLRegisterBuffer(&cudaVBO_, glVBO_, cudaGraphicsMapFlagsNone);
-
+  
   spdlog::debug("VBO created [{} {}]", width, height);
   screenBuffer_.resize(width * height);
+  intermediateBuffer_.resize(width * height);
+
   for (unsigned int row = 0; row < height; ++row) {
     for (unsigned int col = 0; col < width; ++col) {
       auto idx                               = row * width + col;
-      screenBuffer_[idx].x                   = col;
-      screenBuffer_[idx].y                   = row;
-      screenBuffer_[idx].color.components[0] = col * 255 / width;
-      screenBuffer_[idx].color.components[1] = row * 255 / height;
-      screenBuffer_[idx].color.components[2] = 255;
-      screenBuffer_[idx].color.components[3] = 255;
+
+      screenBuffer_[idx].components[0] = col * 255 / width;
+      screenBuffer_[idx].components[1] = row * 255 / height;
+      screenBuffer_[idx].components[2] = 255;
+      screenBuffer_[idx].components[3] = 255;
     }
   }
+  data.width    = width;
+  data.height   = height;
+  data.color = reinterpret_cast<float*>(screenBuffer_.data());
+  denoiser.init( data );
 }
 
 FullScreenOpenGLScene::~FullScreenOpenGLScene() { glDeleteBuffers(1, &glVBO_); }
@@ -59,7 +66,7 @@ void FullScreenOpenGLScene::update(AppContext &ctx) {
 
   // Add pitch support by rotating cx and cy by pitch
   if (ctx.enablePT) {
-    calculateMain(screenBuffer_, width, height, ctx);
+    calculateMain(ctx);
   } else {
 #pragma omp parallel for schedule(dynamic)
     for (int row = 0; row < (int)height; ++row) {
@@ -72,15 +79,15 @@ void FullScreenOpenGLScene::update(AppContext &ctx) {
         if (hit) {
           color = ctx.scene3d->objects.at(hit.id)->mat.baseColor * 255;
         }
-        screenBuffer_[idx].x                   = (float)col;
-        screenBuffer_[idx].y                   = (float)row;
-        screenBuffer_[idx].color.components[0] = (unsigned char)color[0];
-        screenBuffer_[idx].color.components[1] = (unsigned char)color[1];
-        screenBuffer_[idx].color.components[2] = (unsigned char)color[2];
-        screenBuffer_[idx].color.components[3] = alpha;
+        screenBuffer_[idx].components[0] = (unsigned char)color[0];
+        screenBuffer_[idx].components[1] = (unsigned char)color[1];
+        screenBuffer_[idx].components[2] = (unsigned char)color[2];
+        screenBuffer_[idx].components[3] = alpha;
       }
     }
   }
+
+  
   glBindBuffer(GL_ARRAY_BUFFER, glVBO_);
   glBufferData(GL_ARRAY_BUFFER, screenBuffer_.size() * sizeof(Pixel), screenBuffer_.data(),
                GL_DYNAMIC_DRAW);
@@ -123,7 +130,7 @@ void FullScreenOpenGLScene::render(sf::RenderWindow &window) {
   window.popGLStates();
 }
 
-void calculateMain(std::vector<Pixel> &buf, unsigned int width, unsigned int height,
+void FullScreenOpenGLScene::calculateMain(
                    AppContext &ctx) {
   auto aaSampleScale = 1.0 / AA_SAMPLES_PER_PIXEL;
 #pragma omp parallel for schedule(dynamic)
@@ -141,14 +148,43 @@ void calculateMain(std::vector<Pixel> &buf, unsigned int width, unsigned int hei
           rad     = rad + Radiance(ctx.scene3d->radiance_loop(ray));
         }
       }
+      
       Vec3 color                   = rad.toSRGB() * aaSampleScale * 255;
       color                        = clampVec(color, Vec3(0, 0, 0), Vec3(255, 255, 255));
-      buf[idx].x                   = (float)col;
-      buf[idx].y                   = (float)row;
-      buf[idx].color.components[0] = (unsigned char)color.x();
-      buf[idx].color.components[1] = (unsigned char)color.y();
-      buf[idx].color.components[2] = (unsigned char)color.z();
-      buf[idx].color.components[3] = 255;
+      // buf[idx].x                   = (float)col;
+      // buf[idx].y                   = (float)row;
+      intermediateBuffer_[idx].components[0] = (unsigned char)color.x();
+      intermediateBuffer_[idx].components[1] = (unsigned char)color.y();
+      intermediateBuffer_[idx].components[2] = (unsigned char)color.z();
+      intermediateBuffer_[idx].components[3] = 255;
+
     }
   }
+      data.color=reinterpret_cast<float*>(intermediateBuffer_.data());
+      //data.color    = reinterpret_cast<float*>(  rad. );
+      //data.albedo   = reinterpret_cast<float*>( albedo.data );
+      //data.normal   = reinterpret_cast<float*>( normal.data );
+      data.output   = reinterpret_cast<float*>(output.data());
+      
+      denoiser.exec();
+      
+      denoiser.finish();
+
+
+#pragma omp parallel for schedule(dynamic)
+  for (int row = 0; row < (int)height; ++row) {
+    for (int col = 0; col < (int)width; ++col) {
+      auto idx = row * width + col;
+
+      screenBuffer_[idx].components[0] = (unsigned char)output.at(idx).components[0];
+      screenBuffer_[idx].components[1] = (unsigned char)output.at(idx).components[1];
+      screenBuffer_[idx].components[2] = (unsigned char)output.at(idx).components[2];
+      screenBuffer_[idx].components[3] = 255;
+
+    }
+  }
+
+ 
+
+
 }

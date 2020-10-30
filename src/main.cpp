@@ -15,7 +15,6 @@
 #include "scenes/full_screen_opengl.h"
 
 #include "optick.h"
-
 void createGUI();
 
 int main(int argc, const char **argv) {
