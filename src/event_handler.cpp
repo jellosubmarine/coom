@@ -78,6 +78,12 @@ void EventHandler::handleJoystickEvent(sf::RenderWindow &window, sf::Event &even
     }
   }
 
+  if (event.joystickButton.button == joystick.RB.map) {
+    if (event.type == sf::Event::JoystickButtonPressed) {
+      shooting.shotHappened = 1;
+    }
+  }
+
   if (event.type == sf::Event::JoystickMoved) {
     if (event.joystickMove.axis == sf::Joystick::X) {
       joystick.axis_x = event.joystickMove.position;

@@ -70,7 +70,7 @@ int main(int argc, const char **argv) {
     event_handler.handleMovement(ctx);
 
     // Update movements
-    // ctx.scene3d->update(ctx.dtime);
+    ctx.scene3d->update(ctx.dtime);
     // END update movements
 
     window.clear();
