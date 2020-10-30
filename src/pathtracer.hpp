@@ -16,9 +16,9 @@
 #define INF 1e20
 #define EPSILON 1e-4
 // Ideally option, not a hard define
-#define SAMPLES_PER_PIXEL 5
-#define AA_SAMPLES_PER_PIXEL 1
-#define DEPTH_LIMIT 4
+#define SAMPLES_PER_PIXEL 3
+#define AA_SAMPLES_PER_PIXEL 3
+#define DEPTH_LIMIT 2
 
 // hardcoded rectangle room
 #define FRONT_WALL -5
@@ -40,6 +40,26 @@ inline Vec3 UniformSampleHemisphere(double u0, double u1) {
   double r   = std::sqrt(std::max(0.0, 1.0 - u0 * u0));
   double phi = 2 * EIGEN_PI * u1;
   return Vec3(r * std::cos(phi), r * std::sin(phi), u0);
+}
+inline double RNG_normal() {
+  std::default_random_engine generator;
+  std::normal_distribution<double> distribution(0.0, 1.0);
+  return distribution(generator);
+}
+
+inline Vec3 RandomSpherePoint(double radius) {
+  double x = RNG_normal();
+  double y = RNG_normal();
+  double z = RNG_normal();
+
+  while (x == 0.0 && y == 0.0 && z == 0.0) {
+    x = RNG_normal();
+    y = RNG_normal();
+    z = RNG_normal();
+  }
+
+  double norm = Vec3(x, y, z).norm();
+  return Vec3(radius * x / norm, radius * y / norm, radius * z / norm);
 }
 
 inline double UniformHemispherePdf() { return 1 / (2 * EIGEN_PI); }
@@ -201,6 +221,7 @@ struct SceneObject {
   virtual Hit intersect(const Ray &r) const = 0;
   virtual void update(float dt) {}
   virtual ~SceneObject() { spdlog::info("{} destroyed", name); }
+  virtual double getRadius() { return -1.0; }
 };
 
 struct Sphere : public SceneObject {
@@ -210,6 +231,8 @@ struct Sphere : public SceneObject {
       : SceneObject(pos, mat, name), rad(rad) {
     type = SPHERE;
   }
+
+  double getRadius() { return rad; }
 
   Hit intersect(const Ray &r) const {
     Vec3 e_  = pos - r.o;
@@ -299,6 +322,7 @@ struct Scene3D {
     Vec3 radiance{0.0f, 0.0f, 0.0f};
     Vec3 transmittance{1.0f, 1.0f, 1.0f};
     Ray ray = r;
+    int prev_mat{0};
 
     for (int i = 0; i < DEPTH_LIMIT; i++) {
       Hit h = sceneIntersect(ray);
@@ -306,14 +330,44 @@ struct Scene3D {
         break;
       }
       Vec3 emissivity = objects.at(h.id)->mat.emissivity;
-      if (!emissivity.isZero(0)) {
+      if ((i == 0 || prev_mat == SPEC) && !emissivity.isZero(0)) {
         radiance += emissivity.cwiseProduct(transmittance);
+        break;
       }
+      radiance += sampleLights(h).cwiseProduct(transmittance);
+
+      prev_mat      = objects.at(h.id)->mat.type;
       auto response = objects.at(h.id)->mat.bsdf(h, ray);
       ray           = response.ray;
       transmittance = transmittance.cwiseProduct(response.transmittance);
     }
     return radiance;
+  }
+
+  Vec3 sampleLights(Hit &h) {
+    Vec3 directLight{0.0f, 0.0f, 0.0f};
+    for (auto i = 0; i < objects.size(); ++i) {
+      Vec3 Li = objects.at(i)->mat.emissivity;
+      if (Li.isZero(0) || i == h.id) {
+        continue;
+      }
+      double light_source_radius = objects.at(i)->getRadius();
+      Vec3 rnd_point             = objects.at(i)->pos + RandomSpherePoint(light_source_radius);
+      Vec3 direction             = (rnd_point - h.point).normalized();
+      double cos_term            = h.normal.dot(direction);
+      Ray ray_to_light(h.point, direction);
+      Hit lightIntersect = sceneIntersect(ray_to_light);
+      if (lightIntersect.id != i) {
+        continue; // occlusion
+      }
+
+      double solidangle =
+          EIGEN_PI * light_source_radius * light_source_radius / lightIntersect.dist;
+
+      directLight +=
+          Li.cwiseProduct((objects.at(h.id)->mat.baseColor / EIGEN_PI) * cos_term * solidangle);
+    }
+    return directLight;
   }
 
   void update(float dt) {
