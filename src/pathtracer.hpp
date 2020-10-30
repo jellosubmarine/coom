@@ -16,9 +16,9 @@
 #define INF 1e20
 #define EPSILON 1e-4
 // Ideally option, not a hard define
-#define SAMPLES_PER_PIXEL 5
+#define SAMPLES_PER_PIXEL 10
 #define AA_SAMPLES_PER_PIXEL 2
-#define DEPTH_LIMIT 2
+#define DEPTH_LIMIT 4
 
 // hardcoded rectangle room
 #define FRONT_WALL -5
@@ -332,7 +332,10 @@ struct Scene3D {
       Vec3 emissivity = objects.at(h.id)->mat.emissivity;
       if ((i == 0 || prev_mat == SPEC) && !emissivity.isZero(0)) {
         radiance += emissivity.cwiseProduct(transmittance);
-        break;
+
+        // if (objects.at(h.id)->mat.type != REFR) {
+        //   break;
+        // }
       }
       radiance += sampleLights(h).cwiseProduct(transmittance);
 
@@ -384,20 +387,23 @@ struct Scene3D {
   void generateScene() {
     objects.clear();
     objects.emplace_back(std::make_unique<Sphere>(
-        0.5, Vec3(-2, 0.5, -1), Material(Vec3(0, 0, 0), Vec3(0, 1, 1) * .999, SPEC),
-        "Cyan sphere"));
+        0.5, Vec3(0, 0.7, 1), Material(Vec3(0, 0, 0), Vec3(0, 1, 1) * .999, SPEC), "Cyan sphere"));
     objects.emplace_back(std::make_unique<Sphere>(
-        0.3, Vec3(0, 0.3, -2), Material(Vec3(0, 0, 0), Vec3(1, 0, 1) * .999, DIFF),
+        0.9, Vec3(0, 0.5, -2), Material(Vec3(0, 0, 0), Vec3(1, 0, 1) * .999, DIFF),
         "Purple sphere"));
     objects.emplace_back(std::make_unique<Sphere>(
-        0.4, Vec3(2, 0.4, -1.5), Material(Vec3(0, 0, 0), Vec3(1, 1, 0) * .999, DIFF),
+        0.4, Vec3(2, 0.5, -1.5), Material(Vec3(0, 0, 0), Vec3(1, 1, 0) * .999, DIFF),
         "Yellow sphere"));
     objects.emplace_back(std::make_unique<Sphere>(
-        0.3, Vec3(-2, 3, -1), Material(Vec3(1, 1, 1), Vec3(1, 1, 1), DIFF), "Ceiling light"));
+        0.5, Vec3(-2, 3, -1), Material(Vec3(1, 1, 1), Vec3(1, 1, 1), DIFF), "Ceiling light"));
+    // objects.emplace_back(std::make_unique<Sphere>(
+    //     0.5, Vec3(2, 3, -1), Material(Vec3(1, 1, 1), Vec3(1, 1, 1), DIFF), "Ceiling light 2"));
     objects.emplace_back(std::make_unique<Sphere>(
-        0.3, Vec3(2, 3, -1), Material(Vec3(1, 1, 1), Vec3(1, 1, 1), DIFF), "Ceiling light 2"));
-    objects.emplace_back(std::make_unique<Sphere>(
-        0.5, Vec3(0, 0.5, 4), Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .999, REFR), "Red sphere"));
+        0.5, Vec3(0, 3, 3), Material(Vec3(1, 1, 1), Vec3(1, 1, 1), DIFF), "Ceiling light 3"));
+
+    // objects.emplace_back(std::make_unique<Sphere>(
+    //     0.4, Vec3(0, 1.5, 1), Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .999, REFR), "Red
+    //     sphere"));
     // Right wall
     objects.emplace_back(std::make_unique<Plane>(Vec3(-1, 0, 0), Vec3(RIGHT_WALL, 0, 0),
                                                  Material(Vec3(0, 0, 0), Vec3(1, 0, 0) * .5, DIFF),
