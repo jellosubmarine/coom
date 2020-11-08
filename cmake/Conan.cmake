@@ -24,6 +24,8 @@ conan_cmake_run(
   imgui-sfml/2.1@bincrafters/stable
   glew/2.1.0@bincrafters/stable
   eigen/3.3.7
+  # glfw/3.3.2
+  glad/0.1.29@bincrafters/stable 
   # yaml-cpp/0.6.3
   # nlohmann_json/3.7.3
   OPTIONS

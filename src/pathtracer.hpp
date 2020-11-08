@@ -5,6 +5,7 @@
 #pragma warning(pop)
 #include "optick.h"
 #include <SFML/Audio.hpp>
+#include <cmath>
 #include <iostream>
 #include <memory>
 #include <ostream>
@@ -101,34 +102,37 @@ struct Material {
                               (baseColor / EIGEN_PI) *
                                   (h.normal.dot(direction) / UniformHemispherePdf()));
     } else if (type == SPEC) {
-      Vec3 direction = r.d - h.normal*2*h.normal.dot(r.d);
-      return MaterialResponse(Ray(h.point, direction), (baseColor / EIGEN_PI)*
+      Vec3 direction = r.d - h.normal * 2 * h.normal.dot(r.d);
+      return MaterialResponse(Ray(h.point, direction),
+                              (baseColor / EIGEN_PI) *
                                   (h.normal.dot(direction) / UniformHemispherePdf()));
-    }
-    else if(type==REFR){
-      double refractive_idx=1.52; //Using Test Refraction index for plate glass
-      double RO=(1.0-refractive_idx)/(1.0+refractive_idx);
-      RO=RO*RO;
-      Vec3 N = h.normal;
-      if(N.dot(r.d)>0){   // Determining if within medium
-        N = N*-1;
-        refractive_idx=1/refractive_idx;
+    } else if (type == REFR) {
+      double refractive_idx = 1.52; // Using Test Refraction index for plate glass
+      double RO             = (1.0 - refractive_idx) / (1.0 + refractive_idx);
+      RO                    = RO * RO;
+      Vec3 N                = h.normal;
+      if (N.dot(r.d) > 0) { // Determining if within medium
+        N              = N * -1;
+        refractive_idx = 1 / refractive_idx;
       }
-      refractive_idx=1/refractive_idx;
+      refractive_idx = 1 / refractive_idx;
       // Computing refraction using Snell's Law
-      double cos_theta1=(N.dot(r.d))*-1;  //Computing CosTheta1
-      double cos_theta2=1.0-refractive_idx*refractive_idx*(1.0-cos_theta1*cos_theta1);  //Computing CostTheta2
-      double Rprob = RO + (1.0 - RO)*pow(1.0-cos_theta1,5.0); //Schlick Approximation
-      if (cos_theta2>0 && random_double()>Rprob){ //Refraction
-        Vec3 direction=((r.d*refractive_idx)+(N*(refractive_idx*cos_theta1-sqrt(cos_theta2))));
-        return MaterialResponse(Ray(h.point, direction), (baseColor / EIGEN_PI)*
-                                  (h.normal.dot(direction) / UniformHemispherePdf()));
-      }else{  //Else do reflection
-        Vec3 direction = r.d - h.normal*2*h.normal.dot(r.d);
-        return MaterialResponse(Ray(h.point, direction), (baseColor / EIGEN_PI)*
-                                  (h.normal.dot(direction) / UniformHemispherePdf()));
+      double cos_theta1 = (N.dot(r.d)) * -1; // Computing CosTheta1
+      double cos_theta2 = 1.0 - refractive_idx * refractive_idx *
+                                    (1.0 - cos_theta1 * cos_theta1); // Computing CostTheta2
+      double Rprob = RO + (1.0 - RO) * pow(1.0 - cos_theta1, 5.0);   // Schlick Approximation
+      if (cos_theta2 > 0 && random_double() > Rprob) {               // Refraction
+        Vec3 direction =
+            ((r.d * refractive_idx) + (N * (refractive_idx * cos_theta1 - sqrt(cos_theta2))));
+        return MaterialResponse(Ray(h.point, direction),
+                                (baseColor / EIGEN_PI) *
+                                    (h.normal.dot(direction) / UniformHemispherePdf()));
+      } else { // Else do reflection
+        Vec3 direction = r.d - h.normal * 2 * h.normal.dot(r.d);
+        return MaterialResponse(Ray(h.point, direction),
+                                (baseColor / EIGEN_PI) *
+                                    (h.normal.dot(direction) / UniformHemispherePdf()));
       }
-      
     }
   }
 };

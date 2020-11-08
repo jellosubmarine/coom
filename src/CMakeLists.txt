@@ -1,6 +1,6 @@
 add_executable(sfml_cuda
     main.cpp
-    # OptixDenoiser.cpp
+    OptixDenoiser.cpp
     options.cpp
     event_handler.cpp
     scenes/full_screen_opengl.cpp
@@ -17,6 +17,7 @@ set(OptiX_INSTALL_DIR "C:/ProgramData/NVIDIA\ Corporation/OptiX\ SDK\ 7.2.0/SDK"
 # Add the path to the OptiX headers to our include paths.
 include_directories(
   "C:/ProgramData/NVIDIA\ Corporation/OptiX\ SDK\ 7.2.0/include"
+  "C:/ProgramData/NVIDIA\ Corporation/OptiX\ SDK\ 7.2.0/SDK"
   "${OptiX_INSTALL_DIR}/cuda"
   )
 
@@ -70,6 +71,7 @@ target_link_libraries_system(
   CONAN_PKG::spdlog
   CONAN_PKG::imgui-sfml
   CONAN_PKG::glew
+  CONAN_PKG::glad
   CONAN_PKG::eigen
 )
 

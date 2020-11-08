@@ -1,17 +1,20 @@
 #include "full_screen_opengl.h"
-//#include <OptiXDenoiser.h>
 #include "../pathtracer.hpp"
+
 #pragma warning(push, 0)
 #include <Eigen/Dense>
 #pragma warning(pop)
 
-#include <cuda_gl_interop.h>
+#include <GL/glew.h>
 #include <math.h>
 
 
+#include "../OptiXDenoiser.h"
 
-
-
+#include <cuda_gl_interop.h>
+Optix::OptiXDenoiser denoiser;
+Optix::OptiXDenoiser::Data data;
+GLuint glVBO_;
 
 FullScreenOpenGLScene::FullScreenOpenGLScene(sf::RenderWindow const &window) {
   glewInit();
@@ -31,14 +34,14 @@ FullScreenOpenGLScene::FullScreenOpenGLScene(sf::RenderWindow const &window) {
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
   // cudaGraphicsGLRegisterBuffer(&cudaVBO_, glVBO_, cudaGraphicsMapFlagsNone);
-  
+
   spdlog::debug("VBO created [{} {}]", width, height);
   screenBuffer_.resize(width * height);
   intermediateBuffer_.resize(width * height);
 
   for (unsigned int row = 0; row < height; ++row) {
     for (unsigned int col = 0; col < width; ++col) {
-      auto idx                               = row * width + col;
+      auto idx = row * width + col;
 
       screenBuffer_[idx].components[0] = col * 255 / width;
       screenBuffer_[idx].components[1] = row * 255 / height;
@@ -46,10 +49,10 @@ FullScreenOpenGLScene::FullScreenOpenGLScene(sf::RenderWindow const &window) {
       screenBuffer_[idx].components[3] = 255;
     }
   }
-  data.width    = width;
-  data.height   = height;
-  data.color = reinterpret_cast<float*>(screenBuffer_.data());
-  denoiser.init( data );
+  data.width  = width;
+  data.height = height;
+  data.color  = reinterpret_cast<float *>(screenBuffer_.data());
+  denoiser.init(data);
 }
 
 FullScreenOpenGLScene::~FullScreenOpenGLScene() { glDeleteBuffers(1, &glVBO_); }
@@ -87,7 +90,6 @@ void FullScreenOpenGLScene::update(AppContext &ctx) {
     }
   }
 
-  
   glBindBuffer(GL_ARRAY_BUFFER, glVBO_);
   glBufferData(GL_ARRAY_BUFFER, screenBuffer_.size() * sizeof(Pixel), screenBuffer_.data(),
                GL_DYNAMIC_DRAW);
@@ -130,8 +132,7 @@ void FullScreenOpenGLScene::render(sf::RenderWindow &window) {
   window.popGLStates();
 }
 
-void FullScreenOpenGLScene::calculateMain(
-                   AppContext &ctx) {
+void FullScreenOpenGLScene::calculateMain(AppContext &ctx) {
   auto aaSampleScale = 1.0 / AA_SAMPLES_PER_PIXEL;
 #pragma omp parallel for schedule(dynamic)
   for (int row = 0; row < (int)height; ++row) {
@@ -148,28 +149,26 @@ void FullScreenOpenGLScene::calculateMain(
           rad     = rad + Radiance(ctx.scene3d->radiance_loop(ray));
         }
       }
-      
-      Vec3 color                   = rad.toSRGB() * aaSampleScale * 255;
-      color                        = clampVec(color, Vec3(0, 0, 0), Vec3(255, 255, 255));
+
+      Vec3 color = rad.toSRGB() * aaSampleScale * 255;
+      color      = clampVec(color, Vec3(0, 0, 0), Vec3(255, 255, 255));
       // buf[idx].x                   = (float)col;
       // buf[idx].y                   = (float)row;
       intermediateBuffer_[idx].components[0] = (unsigned char)color.x();
       intermediateBuffer_[idx].components[1] = (unsigned char)color.y();
       intermediateBuffer_[idx].components[2] = (unsigned char)color.z();
       intermediateBuffer_[idx].components[3] = 255;
-
     }
   }
-      data.color=reinterpret_cast<float*>(intermediateBuffer_.data());
-      //data.color    = reinterpret_cast<float*>(  rad. );
-      //data.albedo   = reinterpret_cast<float*>( albedo.data );
-      //data.normal   = reinterpret_cast<float*>( normal.data );
-      data.output   = reinterpret_cast<float*>(output.data());
-      
-      denoiser.exec();
-      
-      denoiser.finish();
+  data.color = reinterpret_cast<float *>(intermediateBuffer_.data());
+  // data.color    = reinterpret_cast<float*>(  rad. );
+  // data.albedo   = reinterpret_cast<float*>( albedo.data );
+  // data.normal   = reinterpret_cast<float*>( normal.data );
+  data.output = reinterpret_cast<float *>(output.data());
 
+  denoiser.exec();
+
+  denoiser.finish();
 
 #pragma omp parallel for schedule(dynamic)
   for (int row = 0; row < (int)height; ++row) {
@@ -180,11 +179,6 @@ void FullScreenOpenGLScene::calculateMain(
       screenBuffer_[idx].components[1] = (unsigned char)output.at(idx).components[1];
       screenBuffer_[idx].components[2] = (unsigned char)output.at(idx).components[2];
       screenBuffer_[idx].components[3] = 255;
-
     }
   }
-
- 
-
-
 }
